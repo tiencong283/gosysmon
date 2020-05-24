@@ -1,0 +1,4 @@
+kafka:
+  brokers:
+  - localhost:9092
+  topic: winsysmon

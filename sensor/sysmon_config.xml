@@ -1,0 +1,129 @@
+<!--
+	The configuration file for sensor used in gosysmon project. It's built/forked from existing templates including:
+		https://github.com/SwiftOnSecurity/sysmon-config
+
+	NOTE: Using exclude with no rules means everything will be logged
+	NOTE: Using include with no rules means nothing will be logged
+-->
+
+<Sysmon schemaversion="4.30">
+    <HashAlgorithms>MD5,SHA1,SHA256
+    </HashAlgorithms> <!-- algorithms supported include MD5, SHA1, SHA256, IMPHASH and * (all) -->
+    <CheckRevocation/> <!-- Check loaded drivers, log if their code-signing certificate has been revoked, in case malware stole one to sign a kernel driver -->
+
+    <EventFiltering>
+
+        <!-- EVENT ID 1 : PROCESS CREATION [ProcessCreate] -->
+        <RuleGroup name="" groupRelation="or">
+            <ProcessCreate onmatch="exclude">
+            </ProcessCreate>
+        </RuleGroup>
+
+        <!-- EVENT ID 2 : A PROCESS CHANGED A FILE CREATION TIME [FileCreateTime] -->
+        <RuleGroup name="" groupRelation="or">
+            <FileCreateTime onmatch="exclude">
+            </FileCreateTime>
+        </RuleGroup>
+
+        <!-- EVENT ID 3 : NETWORK CONNECTION INITIATED [NetworkConnect] -->
+        <RuleGroup name="" groupRelation="or">
+            <NetworkConnect onmatch="exclude">
+            </NetworkConnect>
+        </RuleGroup>
+
+        <!-- EVENT ID 4 : SYSMON SERVICE STATE CHANGED -->
+
+        <!-- EVENT ID 5 : PROCES TERMINATED [ProcessTerminate] -->
+        <RuleGroup name="" groupRelation="or">
+            <ProcessTerminate onmatch="exclude">
+            </ProcessTerminate>
+        </RuleGroup>
+
+        <!-- EVENT ID 6 : DRIVER LOADED INTO KERNEL [DriverLoad] -->
+        <RuleGroup name="" groupRelation="or">
+            <DriverLoad onmatch="exclude">
+            </DriverLoad>
+        </RuleGroup>
+
+        <!-- EVENT ID 7 : DLL (IMAGE) LOADED BY PROCESS [ImageLoad] -->
+        <RuleGroup name="" groupRelation="or">
+            <ImageLoad onmatch="exclude">
+            </ImageLoad>
+        </RuleGroup>
+
+        <!-- EVENT ID 8 : REMOTE THREAD CREATED [CreateRemoteThread] -->
+        <RuleGroup name="" groupRelation="or">
+            <CreateRemoteThread onmatch="exclude">
+            </CreateRemoteThread>
+        </RuleGroup>
+
+        <!-- EVENT ID 9 : RAW DISK ACCESS [RawAccessRead] -->
+        <RuleGroup name="" groupRelation="or">
+            <RawAccessRead onmatch="exclude">
+            </RawAccessRead>
+        </RuleGroup>
+
+        <!-- EVENT ID 10 : INTER-PROCESS ACCESS [ProcessAccess] -->
+        <RuleGroup name="" groupRelation="or">
+            <ProcessAccess onmatch="exclude">
+            </ProcessAccess>
+        </RuleGroup>
+
+        <!-- EVENT ID 11 : FILE CREATED [FileCreate] -->
+        <RuleGroup name="" groupRelation="or">
+            <FileCreate onmatch="exclude">
+            </FileCreate>
+        </RuleGroup>
+
+        <!-- EVENT ID 12 & 13 & 14 : REGISTRY MODIFICATION [RegistryEvent] -->
+        <!-- EVENT ID 12: "Registry object added or deleted" -->
+        <!-- EVENT ID 13: "Registry value set" -->
+        <!-- EVENT ID 14: "Registry objected renamed" -->
+        <RuleGroup name="" groupRelation="or">
+            <RegistryEvent onmatch="exclude">
+            </RegistryEvent>
+        </RuleGroup>
+
+        <!-- EVENT ID 15 : ALTERNATE DATA STREAM CREATED [FileCreateStreamHash] -->
+        <RuleGroup name="" groupRelation="or">
+            <FileCreateStreamHash onmatch="exclude">
+            </FileCreateStreamHash>
+        </RuleGroup>
+
+        <!-- EVENT ID 16 : SYSMON CONFIG STATE CHANGED-->
+
+        <!-- EVENT ID 17 & 18 : PIPE CREATED / PIPE CONNECTED [PipeEvent] -->
+        <!-- EVENT ID 17: "Pipe Created" -->
+        <!-- EVENT ID 18: "Pipe Connected" -->
+        <RuleGroup name="" groupRelation="or">
+            <PipeEvent onmatch="exclude">
+            </PipeEvent>
+        </RuleGroup>
+
+        <!-- EVENT ID 19 & 20 & 21 : WMI EVENT MONITORING [WmiEvent] -->
+        <!-- EVENT ID 19: "WmiEventFilter activity detected" -->
+        <!-- EVENT ID 20: "WmiEventConsumer activity detected" -->
+        <!-- EVENT ID 21: "WmiEventConsumerToFilter activity detected" -->
+        <RuleGroup name="" groupRelation="or">
+            <WmiEvent onmatch="exclude">
+            </WmiEvent>
+        </RuleGroup>
+
+        <!-- EVENT ID 22 : DNS QUERY [DnsQuery]-->
+        <RuleGroup name="" groupRelation="or">
+            <DnsQuery onmatch="exclude">
+            </DnsQuery>
+        </RuleGroup>
+
+        <!-- EVENT ID 23 : A FILE DELETE WAS DETECTED [FileDelete] -->
+        <RuleGroup name="" groupRelation="or">
+            <FileDelete onmatch="exclude">
+            </FileDelete>
+        </RuleGroup>
+
+        <!-- EVENT ID 255 : ERROR -->
+        <!-- "This event is generated when an error occurred within Sysmon. They can happen if the system is under heavy
+        load and certain tasked could not be performed or a bug exists in the Sysmon service. You can report any bugs
+        on the Sysinternals forum or over Twitter (@markrussinovich)" -->
+    </EventFiltering>
+</Sysmon>
