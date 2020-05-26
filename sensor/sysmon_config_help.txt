@@ -1,0 +1,189 @@
+System Monitor v11.0 - System activity monitor
+Copyright (C) 2014-2020 Mark Russinovich and Thomas Garnier
+Sysinternals - www.sysinternals.com
+
+Configuration usage (current schema is version: 4.30):
+
+Configuration files can be specified after the -i (installation) or -c (configuration) switches. They make it easier
+to deploy a preset configuration and to filter captured events.
+
+A simple configuration xml file looks like this:
+
+<Sysmon schemaversion="4.30">
+  <!-- Capture all hashes -->
+  <HashAlgorithms>*</HashAlgorithms>
+  <EventFiltering>
+    <!-- Log all drivers except if the signature -->
+    <!-- contains Microsoft or Windows -->
+    <DriverLoad onmatch="exclude">
+      <Signature condition="contains">microsoft</Signature>
+      <Signature condition="contains">windows</Signature>
+    </DriverLoad>
+    <!-- Do not log process termination -->
+    <ProcessTerminate onmatch="include" />
+    <!-- Log network connection if the destination port equal 443 -->
+    <!-- or 80, and process isn't InternetExplorer -->
+    <NetworkConnect onmatch="include">
+      <DestinationPort>443</DestinationPort>
+      <DestinationPort>80</DestinationPort>
+    </NetworkConnect>
+    <NetworkConnect onmatch="exclude">
+      <Image condition="end with">iexplore.exe</Image>
+    </NetworkConnect>
+  </EventFiltering>
+</Sysmon>
+
+The configuration file contains a schemaversion attribute on the Sysmon tag.This version is independent from the
+Sysmon binary version and allows the parsing of older configuration files. The current schema version is shown in the
+sample configuration.
+
+Configuration entries are directly under the Sysmon tag and filters are under the EventFiltering tag. Configuration
+entries are similar to command line switches, and have their configuration entry described in the Sysmon usage output.
+Parameters are optional based on the tag. If a command line switch also enables an event, it needs to be configured
+though its filter tag.
+
+Configuration entries include the following:
+
+  Entry                 Value     Description
+  ArchiveDirectory      String    Name of directories at volume roots into which copy-on-delete
+                                  files are moved. The directory is protected with a System ACL.
+                                  (you can use PsExec from Sysinternals to access the directory
+                                  using 'psexec -sid cmd').
+                                  Default: Sysmon
+  CheckRevocation        Boolean  Controls signature revocation checks.
+                                  Default: True
+  CopyOnDeletePE         Boolean  Preserves deleted executable image files.
+                                  Default: False
+  CopyOnDeleteSIDs       Strings  Comma-separated list of account SIDs for
+                                  which file deletes will be preserved.
+  CopyOnDeleteExtensions Strings  Extensions for files that are preserved on
+                                  delete.
+  CopyOnDeleteProcesses  Strings  Process name(s) for which file deletes will
+                                  be preserved.
+  DnsLookup              Boolean  Controls reverse DNS lookup.
+                                  Default: True
+  DriverName             String   Uses specied name for driver and service images.
+  HashAlgorithms         Strings  Hash algorithm(s) to apply for hashing. Algorithms
+                                  supported include MD5, SHA1, SHA256, IMPHASH and * (all).
+                                  Default: None
+Event filtering allows you to filter generated events. In many cases events can be noisy and gathering everything is
+not possible. For example, you might be interested about network connections only for a certain process, but not all
+of them. You can filter the output on the host reducing the data to collect.
+
+Each event has its own filter tag under EventFiltering:
+
+Id     Tag                  Event
+1      ProcessCreate        Process Create
+2      FileCreateTime       File creation time changed
+3      NetworkConnect       Network connection detected
+5      ProcessTerminate     Process terminated
+6      DriverLoad           Driver loaded
+7      ImageLoad            Image loaded
+8      CreateRemoteThread   CreateRemoteThread detected
+9      RawAccessRead        RawAccessRead detected
+10     ProcessAccess        Process accessed
+11     FileCreate           File created
+12     RegistryEvent        Registry object added or deleted
+13     RegistryEvent        Registry value set
+14     RegistryEvent        Registry object renamed
+15     FileCreateStreamHash File stream created
+17     PipeEvent            Pipe Created
+18     PipeEvent            Pipe Connected
+19     WmiEvent             WmiEventFilter activity detected
+20     WmiEvent             WmiEventConsumer activity detected
+21     WmiEvent             WmiEventConsumerToFilter activity detected
+22     DnsQuery             Dns query
+23     FileDelete           File Delete
+
+You can also find these tags in the event viewer on the task name.
+
+The onmatch filter is applied if events are matched. It can be changed with the "onmatch" attribute for the filter
+tag. If the value is 'include', it means only matched events are included. If it is set to 'exclude', the event will
+be included except if a rule match.
+
+Each tag under the filter tag is a fieldname from the event. Each field entry is tested against generated events, if
+one match the rule is applied and the rest is ignored.
+
+For example this rule will discard any process event where the IntegrityLevel is medium:
+
+    <ProcessCreate onmatch="exclude">
+        <IntegrityLevel>Medium</IntegrityLevel>
+    </ProcessCreate>
+
+Field entries can use other conditions to match the value. The conditions areas follow (all are case insensitive):
+
+is            Default, values are equals.
+is not        Values are different.
+contains      The field contains this value.
+contains any  The field contains any of the ; delimited values.
+contains all  The field contains all of the ; delimited values.
+excludes      The field does not contain this value.
+excludes any  The field does not contain one or more of the ; delimited values.
+excludes all  The field does not contain any of the ; delimited values.
+begin with    The field begins with this value.
+end with      The field ends with this value.
+less than     Lexicographical comparison is less than zero.
+more than     Lexicographical comparison is more than zero.
+image         Match an image path (full path or only image name).
+              For example: lsass.exe will match c:\windows\system32\lsass.exe.
+
+You can use a different condition by specifying it as an attribute. This excludes network activity from processes with
+iexplore.exe in their path:
+
+  <NetworkConnect onmatch="exclude">
+    <Image condition="contains">iexplore.exe</Image>
+  </NetworkConnect>
+
+You can use both include and exclude rules for the same tag, where exclude rules override include rules. Within a
+rule, filter conditions have OR behavior,  In the sample configuration shown earlier, the networking filter uses both
+an include and exclude rule to capture activity to port 80 and 443 by all processes except those that have
+iexplore.exe in their name.
+
+It is also possible to override the way that rules are combined by using a rule group which allows the rule combine
+type for one or more events to be set explicity to AND or OR.
+
+The following example demonstrates this usage. In the first rule group, a process create event will generate when
+timeout.exe is executed only with a command - line argument of "100", but a process terminate event will generate for
+termination of ping.exe and timeout.exe.
+
+  <EventFiltering>
+    <RuleGroup name="group 1" groupRelation="and">
+      <ProcessCreate onmatch="include">
+        <Image condition="contains">timeout.exe</Image>
+        <CommandLine condition="contains">100</CommandLine>
+      </ProcessCreate>
+    </RuleGroup>
+    <RuleGroup groupRelation="or">
+      <ProcessTerminate onmatch="include">
+        <Image condition="contains">timeout.exe</Image>
+        <Image condition="contains">ping.exe</Image>
+      </ProcessTerminate>
+    </RuleGroup>
+    <ImageLoad onmatch="include"/>
+  </EventFiltering>
+
+In addition the <Rule> element can be used to extend the groupRelation attribute down to individual rules.
+As with RuleGroup these can also have an optional name attribute and can be combined with classic rules.
+The following example demonstrates this usage
+
+  <EventFiltering>
+    <RuleGroup name="group 1" groupRelation="or">
+      <ProcessCreate onmatch="include">
+        <Image condition="contains any">chrome.exe;firefox.exe;iexplore.exe</Image>
+        <Rule name="powershell by cmd" groupRelation="and">
+          <Image condition="end with">powershell.exe</Image>
+          <ParentImage condition="contains">cmd.exe</ParentImage>
+        </Rule>
+        <Rule groupRelation="and">
+          <Image condition="end with">cmd.exe</Image>
+          <ParentImage condition="end with">explorer.exe</ParentImage>
+        </Rule>
+      </ProcessCreate>
+    </RuleGroup>
+  </EventFiltering>
+
+To have Sysmon report which rule match resulted in an event being logged, add names to rules:
+
+  <NetworkConnect onmatch="exclude">
+    <Image name="network iexplore" condition="contains">iexplore.exe</Image>
+  </NetworkConnect>

@@ -22,9 +22,9 @@ winlogbeat.event_logs:
   - name: Microsoft-Windows-Sysmon/Operational
     ignore_older: 24h
     processors:
-        - drop_fields:
-            # these fields are redundant
-            fields: ["agent", "ecs", "message", "log", "host", "event", "@metadata"]
+      - drop_fields:
+          # these fields are redundant
+          fields: ["agent", "ecs", "message", "log", "host", "event", "@metadata"]
 
 #------------------------------- Kafka output ----------------------------------
 output.kafka:
@@ -40,14 +40,14 @@ output.kafka:
   # using any event field. To set the topic from document type use `%{[type]}`.
   topic: winsysmon
 
-  # The Kafka event key setting. Use format string to create a unique event key.
-  # By default no event key will be generated.
-  #key: ''
+    # The Kafka event key setting. Use format string to create a unique event key.
+    # By default no event key will be generated.
+    #key: ''
 
-  # The Kafka event partitioning strategy. Default hashing strategy is `hash`
-  # using the `output.kafka.key` setting or randomly distributes events if
-  # `output.kafka.key` is not configured.
-  #partition.hash:
+    # The Kafka event partitioning strategy. Default hashing strategy is `hash`
+    # using the `output.kafka.key` setting or randomly distributes events if
+    # `output.kafka.key` is not configured.
+    #partition.hash:
     # If enabled, events will only be published to partitions with reachable
     # leaders. Default is false.
     #reachable_only: false
@@ -57,24 +57,24 @@ output.kafka:
     # Default value is empty list.
     #hash: []
 
-  # Authentication details. Password is required if username is set.
-  #username: ''
-  #password: ''
+    # Authentication details. Password is required if username is set.
+    #username: ''
+    #password: ''
 
-  # Kafka version Winlogbeat is assumed to run against. Defaults to the "1.0.0".
-  #version: '1.0.0'
+    # Kafka version Winlogbeat is assumed to run against. Defaults to the "1.0.0".
+    #version: '1.0.0'
 
-  # Configure JSON encoding
-  #codec.json:
+    # Configure JSON encoding
+    #codec.json:
     # Pretty-print JSON event
     #pretty: false
 
     # Configure escaping HTML symbols in strings.
     #escape_html: false
 
-  # Metadata update configuration. Metadata contains leader information
-  # used to decide which broker to use when publishing.
-  #metadata:
+    # Metadata update configuration. Metadata contains leader information
+    # used to decide which broker to use when publishing.
+    #metadata:
     # Max metadata request retry attempts when cluster is in middle of leader
     # election. Defaults to 3 retries.
     #retry.max: 3
@@ -86,7 +86,7 @@ output.kafka:
     #refresh_frequency: 10m
 
     # Strategy for fetching the topics metadata from the broker. Default is false.
-    #full: false
+  #full: false
 
   # The number of concurrent load-balanced Kafka output workers.
   #worker: 1

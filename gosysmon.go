@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"github.com/segmentio/kafka-go"
 	"os"
 	"time"
 
-	"github.com/json-iterator/go"
+	jsoniter "github.com/json-iterator/go"
+	"github.com/segmentio/kafka-go"
 	_ "github.com/segmentio/kafka-go/gzip"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -19,13 +19,12 @@ func init() {
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.InfoLevel)
 	log.SetFormatter(&log.TextFormatter{
-		DisableColors:   true,
-		DisableQuote:    true,
+		FullTimestamp: true,
 		TimestampFormat: time.RFC3339,
 	})
 }
 
-func main() {
+func mainx() {
 	// reading configuration
 	viper.SetConfigName(ConfigFilePath)
 	viper.SetConfigType("yaml")
@@ -54,6 +53,7 @@ func main() {
 	})
 	defer r.Close()
 
+	hostManager := NewHostManager()
 	var msg Message
 	for {
 		rawMsg, err := r.ReadMessage(context.Background())
@@ -64,6 +64,13 @@ func main() {
 			log.Warn(err)
 		}
 		// process events
-
+		hostManager.OnEvent(&msg.Winlog)
 	}
+}
+func main(){
+	eventFilter, err := NewEventFilterFrom("rules/T1060_registry-run-keys-startup-folder.xml")
+	if err!=nil {
+		log.Fatal(err)
+	}
+	eventFilter.Dump()
 }

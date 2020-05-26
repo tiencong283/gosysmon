@@ -1,0 +1,52 @@
+<Sysmon schemaversion="4.23">
+    <!--
+        references:
+        https://attack.mitre.org/techniques/T1060/
+        https://www.evernote.com/l/AgRctfppsNdAXZkdEsJYNaQi1G90_7pWxxI/
+        whitelist:
+        HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Run
+        HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
+        HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunOnce
+        HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce
+        HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnceEx
+        HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunOnceEx
+        // set when set the policy's startup programs
+        HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run
+        HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run
+        // for services
+        HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunServicesOnce
+        HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunServicesOnce
+        HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunServices
+        HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunServices
+        HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\Userinit
+        HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\Shell
+        HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Session Manager\BootExecute
+        // where to find startup location
+        HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Startup
+        HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\Startup
+        HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\Startup
+        HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Startup
+        https://docs.microsoft.com/en-us/configmgr/develop/reference/core/clients/client-classes/sms_autostartsoftware-client-wmi-class
+        HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\Windows\run
+        HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\Windows\load
+    -->
+    <EventFiltering>
+        <RuleGroup name="" groupRelation="or">
+            <RegistryEvent onmatch="include">
+                <TargetObject name="techID=1060" condition="contains">CurrentVersion\Run</TargetObject> <!--Windows: Wildcard for Run keys, including RunOnce, RunOnceEx, RunServices, RunServicesOnce -->
+                <TargetObject name="techID=1060" condition="contains">\Policies\Explorer\Run</TargetObject>
+
+                <TargetObject name="techID=1060" condition="contains">CurrentVersion\Windows\Load</TargetObject>
+                <TargetObject name="techID=1060" condition="contains">CurrentVersion\Windows\Run</TargetObject>
+
+                <TargetObject name="techID=1060" condition="begin with">HKLM\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\Userinit</TargetObject>
+                <TargetObject name="techID=1060" condition="begin with">HKLM\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\Shell</TargetObject>
+
+                <TargetObject name="techID=1060" condition="begin with">HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\BootExecute</TargetObject>
+
+                <TargetObject name="techID=1060" condition="contains">Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Startup</TargetObject>
+                <TargetObject name="techID=1060" condition="contains">Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\Startup</TargetObject>
+            </RegistryEvent>
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>
