@@ -1,6 +1,9 @@
 package main
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 type Process struct {
 }
@@ -29,31 +32,36 @@ func (host *Host) getNumberOfProcesses() int {
 
 // client manager, the key is ProviderGuid which is the identity of the application or service (sysmon) that logged the record
 // so it can be used relatively to represent a computer
-type HostManager map[string]*Host
+type HostManager struct {
+	Hosts map[string]*Host
+	Mux   sync.Mutex
+}
 
 // NewHostManager returns new instance of HostManager
-func NewHostManager() HostManager {
-	return make(HostManager)
+func NewHostManager() *HostManager {
+	return &HostManager{
+		Hosts: make(map[string]*Host),
+	}
 }
 
 // AddHost adds new host
-func (hosts HostManager) AddHost(providerGuid string, host *Host) {
-	hosts[providerGuid] = host
+func (hm *HostManager) AddHost(providerGuid string, host *Host) {
+	hm.Mux.Lock()
+	hm.Hosts[providerGuid] = host
+	hm.Mux.Unlock()
 }
 
 // GetHost returns the host with providerGuid
-func (hosts HostManager) GetHost(providerGuid string) *Host {
-	return hosts[providerGuid]
+func (hm *HostManager) GetHost(providerGuid string) *Host {
+	return hm.Hosts[providerGuid]
 }
 
 // GetNumOfHosts returns number of hosts
-func (hosts HostManager) GetNumOfHosts() int {
-	return len(hosts)
+func (hm *HostManager) GetNumOfHosts() int {
+	return len(hm.Hosts)
 }
 
 // OnEvent processes each event for updating the model and any type of checking
-func (hosts HostManager) OnEvent(event *SysmonEvent) {
-	if event.isProcessEvent() { // process-related events
+func (hm *HostManager) OnEvent(event *SysmonEvent) {
 
-	}
 }

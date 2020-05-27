@@ -57,7 +57,8 @@ type EventMetadata struct {
 // sysmon event representation
 type SysmonEvent struct {
 	EventMetadata
-	EventData map[string]string `json:"event_data"`
+	EventData    map[string]string `json:"event_data"`
+	//sync.RWMutex `json:"-"`
 }
 
 // isProcessEvent returns true if the event caused by a process. In other words, the event must contain  information to identify that process
