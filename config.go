@@ -4,16 +4,14 @@ const (
 	ConfigFilePath = "config.yml"
 )
 
-var (
+const (
 	// default configuration
-	DefKafkaBrokers = []string{
-		"localhost:9092",
-	}
+	DefKafkaBrokers = "localhost:9092"
 	DefKafkaTopic = "winsysmon"
 )
 
 // global configuration
 type Config struct {
-	KafkaBrokers []string
+	KafkaBrokers string
 	KafkaTopic   string
 }

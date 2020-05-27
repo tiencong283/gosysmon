@@ -39,7 +39,9 @@ var eventIDToRuleName = map[int]string{
 }
 
 const (
-	// supported match operations
+	// the maximum number of rules per group
+	MaxRulesPerGroup = 4
+	// supported match operations (case insensitive)
 	OIs        = "is"
 	OContains  = "contains"
 	OBeginWith = "begin with"
@@ -47,28 +49,89 @@ const (
 	OImage     = "image" // "Match an image path (full path or only image name). For example: lsass.exe will match c:\windows\system32\lsass.exe"
 )
 
-// rules are chained into a singly-linked list
+// Rule is the individual rule for an attribute of an event
 type Rule struct {
-	Next  *Rule
-	Op    string
-	Value string
 	Name  string
+	Cond  string
+	Value string
 }
 
-type FieldFilter struct {
-	IncludeRules map[string]*Rule
-	ExcludeRules map[string]*Rule
+// RuleGroup is a group of individual rules combined by Rel which either OR or AND.
+type RuleGroup struct {
+	Next  *RuleGroup
+	Label string
+	Rel   string
+	Rules []*Rule
 }
 
-type EventFilter map[string]*FieldFilter
+// EventFilter contains filtering rules for all events. Two types of rules for each event are inclusion and exclusion:
+// 'include' means only matched events are included while with 'exclude', the event will be included except if a rule match
+type EventFilter struct {
+	IncludeFilter map[string]*RuleGroup
+	ExcludeFilter map[string]*RuleGroup
+}
+
+// isMatched deals with each rule
+func (rule *Rule) isMatched(event *SysmonEvent) bool {
+	propValue := strings.ToLower(event.EventData[rule.Name])
+	switch rule.Cond {
+	case OIs:
+		if propValue == rule.Value {
+			return true
+		}
+	case OContains:
+		if strings.Contains(propValue, rule.Value) {
+			return true
+		}
+	case OBeginWith:
+		if strings.HasPrefix(propValue, rule.Value) {
+			return true
+		}
+	case OEndWith:
+		if strings.HasSuffix(propValue, rule.Value) {
+			return true
+		}
+	case OImage:
+		if filepath.IsAbs(rule.Value) {
+			if propValue == rule.Value {
+				return true
+			}
+		} else if filepath.Base(propValue) == rule.Value {
+			return true
+		}
+		log.Warnf("Operation %s not supported\n", rule.Cond)
+	}
+	return false
+}
+
+// isMatched deals with each rule group
+func (rg *RuleGroup) isMatched(event *SysmonEvent) bool {
+	switch rg.Rel {
+	case "or":
+		for _, rule := range rg.Rules {
+			if rule.isMatched(event) {
+				return true
+			}
+		}
+		return false
+	case "and":
+		for _, rule := range rg.Rules {
+			if !rule.isMatched(event) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
 
 // NewEventFilter returns new instance of EventFilter
-func NewEventFilter() EventFilter {
-	return make(EventFilter)
+func NewEventFilter() *EventFilter {
+	return new(EventFilter)
 }
 
 // NewEventFilterFrom returns new instance of EventFilter initialized with ruleFilePath
-func NewEventFilterFrom(ruleFilePath string) (EventFilter, error) {
+func NewEventFilterFrom(ruleFilePath string) (*EventFilter, error) {
 	filter := NewEventFilter()
 	if err := filter.UpdateFrom(ruleFilePath); err != nil {
 		return nil, err
@@ -77,7 +140,7 @@ func NewEventFilterFrom(ruleFilePath string) (EventFilter, error) {
 }
 
 // UpdateFrom updates rules from ruleFilePath file
-func (filter EventFilter) UpdateFrom(ruleFilePath string) error {
+func (filter *EventFilter) UpdateFrom(ruleFilePath string) error {
 	mitreFilterFile, err := os.Open(ruleFilePath)
 	if err != nil {
 		return err
@@ -86,14 +149,15 @@ func (filter EventFilter) UpdateFrom(ruleFilePath string) error {
 	if err != nil {
 		return err
 	}
-	err = xml.Unmarshal(data, &filter)
+	err = xml.Unmarshal(data, filter)
 	if err != nil {
 		return err
 	}
 	return nil
 }
+
 // Dump prints content of the filter for debugging purposes
-func (filter EventFilter) Dump(){
+func (filter *EventFilter) Dump() {
 	log.Println("*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*")
 	bytes, err := json.MarshalIndent(filter, "", " ")
 	if err != nil {
@@ -105,66 +169,81 @@ func (filter EventFilter) Dump(){
 }
 
 // onEventFilter is called whenever encounter a event rule
-func (filter EventFilter) onEventFilter(ruleName, onMatch string) {
-	if _, ok := filter[ruleName]; !ok { // first seen event filter
-		filter[ruleName] = new(FieldFilter)
-	}
-	fieldFilter := filter[ruleName]
-
+func (filter *EventFilter) onEventFilter(ruleName, onMatch string) {
 	switch onMatch {
 	case "include":
-		if fieldFilter.IncludeRules == nil {
-			fieldFilter.IncludeRules = make(map[string]*Rule)
+		if filter.IncludeFilter == nil {
+			filter.IncludeFilter = make(map[string]*RuleGroup)
 		}
-		break
 	case "exclude":
-		if fieldFilter.ExcludeRules == nil {
-			fieldFilter.ExcludeRules = make(map[string]*Rule)
+		if filter.ExcludeFilter == nil {
+			filter.ExcludeFilter = make(map[string]*RuleGroup)
 		}
-		break
 	}
 }
 
-// onFieldFilter updates a rule for a field of an event
-func (filter EventFilter) onFieldFilter(ruleName, onMatch, fieldName, label, condition, value string) {
-	var fieldFilter map[string]*Rule
-
-	if onMatch == "include" {
-		fieldFilter = filter[ruleName].IncludeRules
-	} else {
-		fieldFilter = filter[ruleName].ExcludeRules
+// onGroupFilter _
+func (filter *EventFilter) onGroupFilter(ruleName, onMatch, label, rel string) *RuleGroup {
+	if len(label) == 0 {
+		return nil
 	}
-	newRule := &Rule{
-		Op:    condition,
-		Value: value,
-		Name:  label,
+	rel = strings.ToLower(rel)
+	if rel != "or" && rel != "and" {
+		return nil
 	}
-	if _, ok := fieldFilter[fieldName]; !ok { // first seen field filter
-		fieldFilter[fieldName] = newRule
-		return
+	switch onMatch {
+	case "include":
+		head := filter.IncludeFilter[ruleName]
+		newNode := &RuleGroup{
+			Label: label,
+			Rel:   rel,
+			Rules: make([]*Rule, 0, MaxRulesPerGroup),
+		}
+		if head == nil { // insert at head
+			filter.IncludeFilter[ruleName] = newNode
+			return newNode
+		}
+		// insert at tail to preserve order
+		cur := head
+		for ; cur.Next != nil; cur = cur.Next { // traverse to the last node
+		}
+		cur.Next = newNode
+		return newNode
+	case "exclude":
+		head := filter.ExcludeFilter[ruleName]
+		newNode := &RuleGroup{
+			Label: label,
+			Rel:   rel,
+			Rules: make([]*Rule, 0, MaxRulesPerGroup),
+		}
+		if head == nil { // insert at head
+			filter.ExcludeFilter[ruleName] = newNode
+			return newNode
+		}
+		// insert at tail to preserve order
+		cur := head
+		for ; cur.Next != nil; cur = cur.Next { // traverse to the last node
+		}
+		cur.Next = newNode
+		return newNode
 	}
-	// insert at last to preserve order
-	head := fieldFilter[fieldName]
-	cur := head
-	for ; cur.Next != nil; cur = cur.Next { // traverse to last
-	}
-	cur.Next = newRule
+	return nil
 }
 
 // getAttribute returns value of the attribute name of the tag start
 func getAttribute(start xml.StartElement, name string) string {
 	for _, attr := range start.Attr {
-		if strings.EqualFold(attr.Name.Local, name) {
-			return attr.Value
+		if attr.Name.Local == name {
+			return strings.TrimSpace(attr.Value)
 		}
 	}
 	return ""
 }
 
-// hasAttribute returns true if the tag has attribute along with the value
+// hasAttribute returns true if the tag has attribute along with the value (value comparision is case-insensitive)
 func hasAttribute(start xml.StartElement, name, value string) bool {
 	for _, attr := range start.Attr {
-		if strings.EqualFold(attr.Name.Local, name) && strings.EqualFold(attr.Value, value) {
+		if attr.Name.Local == name && strings.EqualFold(attr.Value, value) {
 			return true
 		}
 	}
@@ -192,7 +271,7 @@ func getContent(d *xml.Decoder) string {
 	if !ok {
 		return ""
 	}
-	return string(content)
+	return strings.TrimSpace(string(content))
 }
 
 // UnmarshalXML decodes the config in xml format and updates the filter rules
@@ -212,8 +291,10 @@ func (filter *EventFilter) UnmarshalXML(d *xml.Decoder, start xml.StartElement) 
 
 	var childOfRuleGroupTag = false
 	var childOfEventTag = false
+	var childOfRuleGroup = false
 	var ruleName = ""
 	var onMatch = ""
+	var ruleGroup *RuleGroup
 
 	for { // traverse over nodes (preorder depth-first traversal)
 		token, err := d.Token()
@@ -228,10 +309,10 @@ func (filter *EventFilter) UnmarshalXML(d *xml.Decoder, start xml.StartElement) 
 			element := token.(xml.StartElement)
 			tagName := getTagName(element)
 			if !childOfRuleGroupTag { // find RuleGroup tag first
-				if strings.EqualFold(tagName, "RuleGroup") && hasAttribute(element, "groupRelation", "or") { // only support OR
+				if tagName == "RuleGroup" && hasAttribute(element, "groupRelation", "or") { // only support OR
 					childOfRuleGroupTag = true
 				}
-			} else if !childOfEventTag { // then find event rules
+			} else if !childOfEventTag { // then find event tag
 				ok := false
 				for _, ruleName := range eventIDToRuleName {
 					if ruleName == tagName {
@@ -245,81 +326,67 @@ func (filter *EventFilter) UnmarshalXML(d *xml.Decoder, start xml.StartElement) 
 					}
 				}
 				ruleName = tagName
-				onMatch = getAttribute(element, "onMatch")
+				onMatch = getAttribute(element, "onmatch")
 				switch onMatch {
 				case "include", "exclude":
 					filter.onEventFilter(ruleName, onMatch)
 					childOfEventTag = true
-					break
 				default:
 					if err := d.Skip(); err != nil {
 						return err
 					}
 				}
-			} else { // inner of event tag
+			} else if !childOfRuleGroup { // inner of event tag
 				label := getAttribute(element, "name")
-				cond := getAttribute(element, "condition")
-				filter.onFieldFilter(ruleName, onMatch, tagName, label, cond, getContent(d))
+				rel := "or" // default is OR
+				if tagName == "Rule" {
+					rel = getAttribute(element, "groupRelation")
+					childOfRuleGroup = true
+				}
+				ruleGroup = filter.onGroupFilter(ruleName, onMatch, label, rel)
+				if tagName != "Rule" {
+					ruleGroup.Rules = append(ruleGroup.Rules, &Rule{
+						Name:  tagName,
+						Cond:  getAttribute(element, "condition"),
+						Value: getContent(d),
+					})
+				}
+			} else { // inner of Rule tag
+				if ruleGroup == nil {
+					break
+				}
+				ruleGroup.Rules = append(ruleGroup.Rules, &Rule{
+					Name:  tagName,
+					Cond:  getAttribute(element, "condition"),
+					Value: getContent(d),
+				})
 			}
-			break
 		case xml.EndElement:
 			element := token.(xml.EndElement)
 			tagName := getTagName(element)
 
-			if strings.EqualFold(tagName, ruleName) {
+			if tagName == ruleName {
 				childOfEventTag = false
 				ruleName = ""
-			} else if strings.EqualFold(tagName, "RuleGroup") {
+			} else if tagName == "RuleGroup" {
 				childOfRuleGroupTag = false
+			} else if tagName == "Rule" {
+				childOfRuleGroup = false
+				ruleGroup = nil
 			}
 		}
 	}
-
 	return nil
 }
 
 // isMatched returns the rule that matches the event
-func (filter EventFilter) isMatched(event SysmonEvent, rules map[string]*Rule) *Rule {
-	if rules == nil || len(rules) == 0 {
+func (filter EventFilter) isMatched(event SysmonEvent, ruleName string, rules map[string]*RuleGroup) *RuleGroup {
+	if rules == nil || rules[ruleName] == nil {
 		return nil
 	}
-
-	for propName, rule := range rules { // check each field
-		propValue := strings.ToLower(event.EventData[propName])
-		for ; rule != nil; rule = rule.Next {
-			switch rule.Op {
-			case OIs:
-				if propValue == rule.Value {
-					return rule
-				}
-				break
-			case OContains:
-				if strings.Contains(propValue, rule.Value) {
-					return rule
-				}
-				break
-			case OBeginWith:
-				if strings.HasPrefix(propValue, rule.Value) {
-					return rule
-				}
-				break
-			case OEndWith:
-				if strings.HasSuffix(propValue, rule.Value) {
-					return rule
-				}
-				break
-			case OImage:
-				if filepath.IsAbs(rule.Value) {
-					if propValue == rule.Value {
-						return rule
-					}
-				} else if filepath.Base(propValue) == rule.Value {
-					return rule
-				}
-				break
-			default:
-				log.Warnf("Operation %s not supported\n", rule.Op)
-			}
+	for rg := rules[ruleName]; rg != nil; rg = rg.Next { // traverse over each rule group
+		if rg.isMatched(&event) {
+			return rg
 		}
 	}
 	// reach here means nothing matched
@@ -332,32 +399,14 @@ func (filter EventFilter) GetTechName(event SysmonEvent) string {
 	if !ok { // unsupported event
 		return ""
 	}
-	fieldFilter, ok := filter[ruleName]
-	if !ok {
-		return ""
-	}
 	// exclude matches take precedence
-	matched := filter.isMatched(event, fieldFilter.ExcludeRules)
+	matched := filter.isMatched(event, ruleName, filter.ExcludeFilter)
 	if matched != nil {
 		return ""
 	}
-	matched = filter.isMatched(event, fieldFilter.IncludeRules)
+	matched = filter.isMatched(event, ruleName, filter.IncludeFilter)
 	if matched == nil {
 		return ""
 	}
-	return matched.Name
-}
-
-// IsFiltered returns true if the event is excluded
-func (filter EventFilter) IsFiltered(event SysmonEvent) bool {
-	ruleName, ok := eventIDToRuleName[event.EventID]
-	if !ok { // unsupported event
-		return false
-	}
-	fieldFilter, ok := filter[ruleName]
-	if !ok {
-		return false
-	}
-	matched := filter.isMatched(event, fieldFilter.ExcludeRules)
-	return matched != nil
+	return matched.Label
 }

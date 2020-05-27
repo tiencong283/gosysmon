@@ -19,7 +19,7 @@ func init() {
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.InfoLevel)
 	log.SetFormatter(&log.TextFormatter{
-		FullTimestamp: true,
+		FullTimestamp:   true,
 		TimestampFormat: time.RFC3339,
 	})
 }
@@ -40,12 +40,12 @@ func mainx() {
 		}
 	}
 	config := new(Config)
-	config.KafkaBrokers = viper.GetStringSlice("kafka.brokers")
+	config.KafkaBrokers = viper.GetString("kafka.brokers")
 	config.KafkaTopic = viper.GetString("kafka.topic")
 
 	// reading events
 	r := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:     config.KafkaBrokers,
+		Brokers:     []string{config.KafkaBrokers},
 		Topic:       config.KafkaTopic,
 		MinBytes:    1,
 		MaxBytes:    10e6,
@@ -67,9 +67,9 @@ func mainx() {
 		hostManager.OnEvent(&msg.Winlog)
 	}
 }
-func main(){
+func main() {
 	eventFilter, err := NewEventFilterFrom("rules/T1060_registry-run-keys-startup-folder.xml")
-	if err!=nil {
+	if err != nil {
 		log.Fatal(err)
 	}
 	eventFilter.Dump()

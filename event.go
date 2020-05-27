@@ -63,18 +63,13 @@ type SysmonEvent struct {
 // isProcessEvent returns true if the event caused by a process. In other words, the event must contain  information to identify that process
 func (event *SysmonEvent) isProcessEvent() bool {
 	switch event.EventID {
-	case EServiceStateChange:
-	case EDriverLoad:
-	case EConfigStateChange:
-	case EWmiEventFilter:
-	case EWmiEventConsumer:
-	case EWmiEventBinding:
+	case EServiceStateChange, EDriverLoad, EConfigStateChange, EWmiEventFilter, EWmiEventConsumer, EWmiEventBinding, ESysmonError:
 		return false
 	}
 	return true
 }
 
-// event message which wraps event along with other information
+// event message which wraps event along with other information+
 type Message struct {
 	Winlog SysmonEvent `json: "winlog"`
 }
