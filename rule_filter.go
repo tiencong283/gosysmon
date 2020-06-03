@@ -139,6 +139,19 @@ func NewEventFilterFrom(ruleFilePath string) (*EventFilter, error) {
 	return filter, nil
 }
 
+// UpdateFrom updates rules from ruleDirPath directory
+func (filter *EventFilter) UpdateFromDir(ruleDirPath string) error {
+	return filepath.Walk(ruleDirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() || filepath.Ext(path) != ".xml" {
+			return nil
+		}
+		return filter.UpdateFrom(path)
+	})
+}
+
 // UpdateFrom updates rules from ruleFilePath file
 func (filter *EventFilter) UpdateFrom(ruleFilePath string) error {
 	mitreFilterFile, err := os.Open(ruleFilePath)
@@ -184,9 +197,6 @@ func (filter *EventFilter) onEventFilter(ruleName, onMatch string) {
 
 // onGroupFilter _
 func (filter *EventFilter) onGroupFilter(ruleName, onMatch, label, rel string) *RuleGroup {
-	if len(label) == 0 {
-		return nil
-	}
 	rel = strings.ToLower(rel)
 	if rel != "or" && rel != "and" {
 		return nil
@@ -344,7 +354,7 @@ func (filter *EventFilter) UnmarshalXML(d *xml.Decoder, start xml.StartElement) 
 					childOfRuleGroup = true
 				}
 				ruleGroup = filter.onGroupFilter(ruleName, onMatch, label, rel)
-				if tagName != "Rule" {
+				if ruleGroup != nil && tagName != "Rule" {
 					ruleGroup.Rules = append(ruleGroup.Rules, &Rule{
 						Name:  tagName,
 						Cond:  getAttribute(element, "condition"),

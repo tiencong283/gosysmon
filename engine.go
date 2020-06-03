@@ -3,35 +3,20 @@ package main
 import (
 	"context"
 	"errors"
+
 	"github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
-	"os"
 )
-
-// FilterEngine is the detector engine
-type FilterEngine struct {
-	IOCFilter   IOCFilterer
-	RuleFilter  RuleFilterer
-	ModelFilter ModelFilterer
-}
-
-func (fe *FilterEngine) initDefault() {
-	ruleFilter, err := NewEventFilterFrom("rules/T1060_registry-run-keys-startup-folder.xml")
-	if err != nil {
-		fe.RuleFilter = nil
-		return
-	}
-	fe.RuleFilter = ruleFilter
-}
 
 // the app engine
 type Engine struct {
-	Config       Config
-	Reader       *kafka.Reader
-	NumOfWorkers int
-	WorkerChans  []chan *SysmonEvent
-	HostManager  *HostManager
-	FilterEngine *FilterEngine
+	Config          Config
+	Reader          *kafka.Reader
+	NumOfWorkers    int
+	WorkerChans     []chan *SysmonEvent
+	HostManager     *HostManager
+	FilterEngine    *FilterEngine
+	ExtractorEngine *ExtractorEngine
 }
 
 // NewEngine returns new instance of Engine initialized
@@ -41,9 +26,10 @@ func NewEngine(configFilePath string, numOfWorkers int) (*Engine, error) {
 	}
 
 	engine := &Engine{
-		NumOfWorkers: numOfWorkers,
-		HostManager:  NewHostManager(),
-		FilterEngine: new(FilterEngine),
+		NumOfWorkers:    numOfWorkers,
+		HostManager:     NewHostManager(),
+		FilterEngine:    NewFilterEninge(),
+		ExtractorEngine: NewExtractorEngine(),
 	}
 	engine.WorkerChans = make([]chan *SysmonEvent, engine.NumOfWorkers)
 
@@ -58,7 +44,9 @@ func NewEngine(configFilePath string, numOfWorkers int) (*Engine, error) {
 		StartOffset: 0,
 	})
 
-	engine.FilterEngine.initDefault()
+	engine.FilterEngine.Init(engine.Config.RuleDirPath)
+	engine.ExtractorEngine.InitDefault()
+
 	return engine, nil
 }
 
@@ -87,10 +75,10 @@ func (engine *Engine) Start() error {
 			hostToChanIdx[msg.Winlog.ComputerName] = nextIdx
 			nextIdx = (nextIdx + 1) % engine.NumOfWorkers
 		}
-		// pass msg to chan will result in map concurrency error
+		// pass msg directly to chan will result in map concurrency error
 		clone := &SysmonEvent{
 			EventMetadata: EventMetadata{
-				EventID:      msg.Winlog.EventID,
+				EventID: msg.Winlog.EventID,
 			},
 			EventData: make(map[string]string),
 		}
@@ -104,10 +92,11 @@ func (engine *Engine) Start() error {
 // WorkerHandler is the thread for processing incoming events
 func (engine *Engine) WorkerHandler(chanIdx int) {
 	for event := range engine.WorkerChans[chanIdx] {
+		_ = engine.ExtractorEngine.Transform(event)
 		label := engine.FilterEngine.RuleFilter.GetTechName(event)
 		if len(label) > 0 {
+			log.Println(ToJson(event))
 			log.Println(label)
-			os.Exit(0)
 		}
 	}
 }
@@ -115,6 +104,6 @@ func (engine *Engine) WorkerHandler(chanIdx int) {
 // Close cleans up any resources
 func (engine *Engine) Close() {
 	if engine.Reader != nil {
-		engine.Reader.Close()
+		_ = engine.Reader.Close()
 	}
 }

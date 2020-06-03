@@ -1,0 +1,40 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1053/
+        List:
+            Common utilities:
+                at, schtasks
+            When creating a new local scheduled task, some events will happen:
+                svchost.exe will create registry keys for the scheduled task in:
+                    HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\
+                svchost.exe will create a config file for the scheduled task in one of the following:
+                    C:\Windows\System32\Tasks\<task-name>
+                    C:\Windows\Tasks\<task-name>
+                    C:\Windows\SysWOW64\Tasks\<task-name>
+
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1053/T1053.md
+    -->
+
+    <EventFiltering>
+        <RuleGroup name="" groupRelation="or">
+            <FileCreate onmatch="include">
+                <Rule name="technique_id=T1053" groupRelation="and">
+                    <Image condition="is">C:\Windows\system32\svchost.exe</Image>
+                    <TargetFilename condition="begin with">C:\Windows\Tasks</TargetFilename>
+                </Rule>
+
+                <Rule name="technique_id=T1053" groupRelation="and">
+                    <Image condition="is">C:\Windows\system32\svchost.exe</Image>
+                    <TargetFilename condition="begin with">C:\Windows\System32\Tasks</TargetFilename>
+                </Rule>
+
+                <Rule name="technique_id=T1053" groupRelation="and">
+                    <Image condition="is">C:\Windows\system32\svchost.exe</Image>
+                    <TargetFilename condition="begin with">C:\Windows\SysWOW64\Tasks</TargetFilename>
+                </Rule>
+            </FileCreate>
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>

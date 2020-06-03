@@ -2,7 +2,7 @@ package main
 
 import (
 	_ "github.com/segmentio/kafka-go/gzip"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"runtime"
 )
 

@@ -15,6 +15,7 @@ const (
 	// default configuration
 	DefKafkaBrokers = "localhost:9092"
 	DefKafkaTopic   = "winsysmon"
+	DefRuleDirPath  = "rules"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -23,6 +24,7 @@ var json = jsoniter.ConfigCompatibleWithStandardLibrary
 type Config struct {
 	KafkaBrokers string
 	KafkaTopic   string
+	RuleDirPath  string
 }
 
 func (config *Config) init(configFilePath string) error {
@@ -32,6 +34,7 @@ func (config *Config) init(configFilePath string) error {
 	viper.AddConfigPath(".")
 	viper.SetDefault("kafka.brokers", DefKafkaBrokers)
 	viper.SetDefault("kafka.topic", DefKafkaTopic)
+	viper.SetDefault("rules.dirpath", DefRuleDirPath)
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
@@ -42,6 +45,7 @@ func (config *Config) init(configFilePath string) error {
 	}
 	config.KafkaBrokers = viper.GetString("kafka.brokers")
 	config.KafkaTopic = viper.GetString("kafka.topic")
+	config.RuleDirPath = viper.GetString("rules.dirpath")
 
 	return nil
 }

@@ -1,68 +1,62 @@
 <Sysmon schemaversion="4.30">
     <!--
-        references:
+        References:
             https://attack.mitre.org/techniques/T1060/
-        list:
-            HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
-            HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
-            HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce
-            HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce
-            HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnceEx
-            HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices
-            HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices
-            HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServicesOnce
-            HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServicesOnce
-
-            HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders
-            HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders
-            HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders
-            HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders
-
-            HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run
-            HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run
-
-            HKU\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows\Run
-            HKU\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows\Load
-
-            HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\BootExecute
+            https://docs.microsoft.com/en-us/windows/win32/setupapi/run-and-runonce-registry-keys
+            https://oddvar.moe/2018/03/21/persistence-using-runonceex-hidden-from-autoruns-exe/
+            https://docs.microsoft.com/en-us/configmgr/develop/reference/core/clients/client-classes/sms_autostartsoftware-client-wmi-class
+        List:
+            Run keys:
+                HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
+                HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
+                HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce
+                HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce
+                HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnceEx
+                HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices
+                HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices
+                HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServicesOnce
+                HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServicesOnce
+            Startup location registry:
+                HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders
+                HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders
+                HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders
+                HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders
+            Using policy settings to specify startup programs will eventually create values in these keys:
+                HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run
+                HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run
+            Others:
+                HKU\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows\Run
+                HKU\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows\Load
+                HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\BootExecute
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1060/T1060.md
     -->
+
     <EventFiltering>
         <RuleGroup name="" groupRelation="or">
             <RegistryEvent onmatch="include">
-
-                <!-- run keys
-                    https://docs.microsoft.com/en-us/windows/win32/setupapi/run-and-runonce-registry-keys
-                    https://oddvar.moe/2018/03/21/persistence-using-runonceex-hidden-from-autoruns-exe/
-                -->
                 <Rule name="technique_id=T1060" groupRelation="or">
-                    <TargetObject condition="contains">\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\</TargetObject>
-                    <TargetObject condition="contains">\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce\</TargetObject>
-                    <TargetObject condition="contains">\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnceEx\</TargetObject>
-                    <TargetObject condition="contains">\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices\</TargetObject>
-                    <TargetObject condition="contains">\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServicesOnce\</TargetObject>
+                    <TargetObject condition="begin with">HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run</TargetObject>
+                    <TargetObject condition="begin with">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run</TargetObject>
+                    <TargetObject condition="begin with">HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce</TargetObject>
+                    <TargetObject condition="begin with">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce</TargetObject>
+                    <TargetObject condition="begin with">HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices</TargetObject>
+                    <TargetObject condition="begin with">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices</TargetObject>
+                    <TargetObject condition="begin with">HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServicesOnce</TargetObject>
+                    <TargetObject condition="begin with">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServicesOnce</TargetObject>
                 </Rule>
 
-<!--                &lt;!&ndash; startup location registry &ndash;&gt;-->
-<!--                <Rule name="technique_id=T1060" groupRelation="or">-->
-<!--                    <TargetObject condition="is">HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders</TargetObject>-->
-<!--                    <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders</TargetObject>-->
-<!--                    <TargetObject condition="is">HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders</TargetObject>-->
-<!--                    <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders</TargetObject>-->
-<!--                </Rule>-->
+                <Rule name="technique_id=T1060" groupRelation="or">
+                    <TargetObject condition="is">HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Startup</TargetObject>
+                    <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common Startup</TargetObject>
+                    <TargetObject condition="is">HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\Startup</TargetObject>
+                    <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\Common Startup</TargetObject>
+                </Rule>
 
-<!--                &lt;!&ndash; using policy settings to specify startup programs will eventually create values in these keys &ndash;&gt;-->
-<!--                <Rule name="technique_id=T1060" groupRelation="or">-->
-<!--                    <TargetObject condition="is">HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run</TargetObject>-->
-<!--                    <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run</TargetObject>-->
-<!--                </Rule>-->
-
-<!--                &lt;!&ndash;  https://docs.microsoft.com/en-us/configmgr/develop/reference/core/clients/client-classes/sms_autostartsoftware-client-wmi-class &ndash;&gt;-->
-<!--                <Rule name="technique_id=T1060" groupRelation="or">-->
-<!--                    <TargetObject condition="is">HKU\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows\Run</TargetObject>-->
-<!--                    <TargetObject condition="is">HKU\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows\Load</TargetObject>-->
-<!--                </Rule>-->
-
-<!--                <TargetObject name="technique_id=T1060" condition="is">HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\BootExecute</TargetObject>-->
+                <Rule name="technique_id=T1060" groupRelation="or">
+                    <TargetObject condition="begin with">HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run</TargetObject>
+                    <TargetObject condition="begin with">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run</TargetObject>
+                </Rule>
             </RegistryEvent>
         </RuleGroup>
     </EventFiltering>

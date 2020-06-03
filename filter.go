@@ -38,3 +38,23 @@ type ModelFilterer interface {
 	// TrainAndPredict do updates the profile and report any detection
 	TrainAndPredict(event *SysmonEvent) *RContext
 }
+
+// FilterEngine is the detector engine
+type FilterEngine struct {
+	IOCFilter   IOCFilterer
+	RuleFilter  RuleFilterer
+	ModelFilter ModelFilterer
+}
+
+func NewFilterEninge() *FilterEngine {
+	return new(FilterEngine)
+}
+
+func (fe *FilterEngine) Init(ruleDirPath string) {
+	mitreATTCKFilter := NewEventFilter()
+	if err := mitreATTCKFilter.UpdateFromDir(ruleDirPath); err != nil {
+		fe.RuleFilter = nil
+	} else {
+		fe.RuleFilter = mitreATTCKFilter
+	}
+}
