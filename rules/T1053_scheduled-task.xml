@@ -3,16 +3,16 @@
         References:
             https://attack.mitre.org/techniques/T1053/
         List:
-            Common utilities:
-                at, schtasks
-            When creating a new local scheduled task, some events will happen:
+            Common utilities:  at, schtasks
+            When creating a new local scheduled task by schtasks, some events will happen:
                 svchost.exe will create registry keys for the scheduled task in:
                     HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\
-                svchost.exe will create a config file for the scheduled task in one of the following:
+                svchost.exe will create a config file for the scheduled task in one of the following (depending the environment):
                     C:\Windows\System32\Tasks\<task-name>
                     C:\Windows\Tasks\<task-name>
                     C:\Windows\SysWOW64\Tasks\<task-name>
-
+        Todo:
+            Dealing with at utility and some differences on older versions
         Testing:
             https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1053/T1053.md
     -->

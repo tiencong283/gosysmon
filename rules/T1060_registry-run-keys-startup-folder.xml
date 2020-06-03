@@ -24,6 +24,7 @@
             Using policy settings to specify startup programs will eventually create values in these keys:
                 HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run
                 HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run
+        Todo:
             Others:
                 HKU\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows\Run
                 HKU\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows\Load

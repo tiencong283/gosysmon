@@ -50,9 +50,10 @@ const (
 
 // Rule is the individual rule for an attribute of an event
 type Rule struct {
-	Name  string
-	Cond  string
-	Value string
+	Name    string
+	Cond    string
+	Value   string
+	CaseSen bool
 }
 
 // RuleGroup is a group of individual rules combined by Rel which either OR or AND.
@@ -73,7 +74,9 @@ type EventFilter struct {
 // isMatched deals with each rule
 func (rule *Rule) isMatched(event *SysmonEvent) bool {
 	propValue := event.EventData[rule.Name]
-
+	if !rule.CaseSen {
+		propValue = strings.ToLower(propValue)
+	}
 	switch rule.Cond {
 	case OIs:
 		if propValue == rule.Value {
@@ -167,18 +170,6 @@ func (filter *EventFilter) UpdateFrom(ruleFilePath string) error {
 		return err
 	}
 	return nil
-}
-
-// Dump prints content of the filter for debugging purposes
-func (filter *EventFilter) Dump() {
-	log.Println("*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*")
-	bytes, err := json.MarshalIndent(filter, "", " ")
-	if err != nil {
-		log.Println(err)
-	} else {
-		log.Printf("\n%s", string(bytes))
-	}
-	log.Println("*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*")
 }
 
 // onEventFilter is called whenever encounter a event rule
@@ -365,16 +356,21 @@ func (filter *EventFilter) UnmarshalXML(d *xml.Decoder, start xml.StartElement) 
 				if ruleGroup == nil {
 					break
 				}
+				caseSen := getAttribute(element, "case") == "true"
+				content := getContent(d)
+				if !caseSen { // speed up performance for comparing
+					content = strings.ToLower(content)
+				}
 				ruleGroup.Rules = append(ruleGroup.Rules, &Rule{
-					Name:  tagName,
-					Cond:  getAttribute(element, "condition"),
-					Value: getContent(d),
+					Name:    tagName,
+					Cond:    getAttribute(element, "condition"),
+					Value:   content,
+					CaseSen: caseSen,
 				})
 			}
 		case xml.EndElement:
 			element := token.(xml.EndElement)
 			tagName := getTagName(element)
-
 			if tagName == ruleName {
 				childOfEventTag = false
 				ruleName = ""
@@ -414,6 +410,7 @@ func (filter *EventFilter) GetTechName(event *SysmonEvent) string {
 	if matched != nil {
 		return ""
 	}
+
 	matched = filter.isMatched(event, ruleName, filter.IncludeFilter)
 	if matched == nil {
 		return ""

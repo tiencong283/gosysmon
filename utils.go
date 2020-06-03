@@ -4,7 +4,7 @@ package main
 func ToJson(v interface{}) string {
 	bytes, err := json.MarshalIndent(v, "", " ")
 	if err != nil {
-		return ""
+		return err.Error()
 	}
 	return string(bytes)
 }

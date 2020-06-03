@@ -59,7 +59,7 @@ func (engine *Engine) Start() error {
 	nextIdx := 0
 	hostToChanIdx := make(map[string]int, 0)
 
-	var msg Message
+	var msg = new(Message)
 	for {
 		rawMsg, err := engine.Reader.ReadMessage(context.Background())
 		if err != nil {
@@ -75,17 +75,8 @@ func (engine *Engine) Start() error {
 			hostToChanIdx[msg.Winlog.ComputerName] = nextIdx
 			nextIdx = (nextIdx + 1) % engine.NumOfWorkers
 		}
-		// pass msg directly to chan will result in map concurrency error
-		clone := &SysmonEvent{
-			EventMetadata: EventMetadata{
-				EventID: msg.Winlog.EventID,
-			},
-			EventData: make(map[string]string),
-		}
-		for k, v := range msg.Winlog.EventData {
-			clone.EventData[k] = v
-		}
-		engine.WorkerChans[chanIdx] <- clone
+		engine.WorkerChans[chanIdx] <- &msg.Winlog
+		msg = new(Message)
 	}
 }
 
