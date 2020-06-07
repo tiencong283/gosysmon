@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-
 	"github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
 )
@@ -44,7 +43,9 @@ func NewEngine(configFilePath string, numOfWorkers int) (*Engine, error) {
 		StartOffset: 0,
 	})
 
-	engine.FilterEngine.Init(engine.Config.RuleDirPath)
+	if err := engine.FilterEngine.Init(engine.Config.RuleDirPath); err != nil {
+		return nil, err
+	}
 	engine.ExtractorEngine.InitDefault()
 
 	return engine, nil

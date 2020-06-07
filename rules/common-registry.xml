@@ -2,9 +2,7 @@
     <EventFiltering>
         <RuleGroup name="" groupRelation="or">
             <RegistryEvent onmatch="exclude">
-                <!-- low information noise -->
-                <EventType condition="is">CreateKey</EventType>
-                <EventType condition="is">DeleteValue</EventType>
+                <EventType condition="is" case="true">DeleteValue</EventType>
             </RegistryEvent>
         </RuleGroup>
     </EventFiltering>

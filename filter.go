@@ -1,7 +1,5 @@
 package main
 
-import log "github.com/sirupsen/logrus"
-
 const (
 	// IOC types
 	IOCHash = iota
@@ -52,12 +50,14 @@ func NewFilterEninge() *FilterEngine {
 	return new(FilterEngine)
 }
 
-func (fe *FilterEngine) Init(ruleDirPath string) {
-	mitreATTCKFilter := NewEventFilter()
-	if err := mitreATTCKFilter.UpdateFromDir(ruleDirPath); err != nil {
-		fe.RuleFilter = nil
-		log.Warn(err)
-	} else {
-		fe.RuleFilter = mitreATTCKFilter
+func (fe *FilterEngine) Init(ruleDirPath string) error {
+	mitreATTCKFilter, err := NewMitreATTCKFilter()
+	if err != nil {
+		return err
 	}
+	if err := mitreATTCKFilter.UpdateFromDir(ruleDirPath); err != nil {
+		return err
+	}
+	fe.RuleFilter = mitreATTCKFilter
+	return nil
 }

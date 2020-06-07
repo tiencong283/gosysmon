@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/xml"
+	"errors"
 	"fmt"
+	"github.com/beevik/etree"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
@@ -12,43 +14,26 @@ import (
 	"strings"
 )
 
-// mapping from eventID to its rule name
-var eventIDToRuleName = map[int]string{
-	EProcessCreate:        "ProcessCreate",
-	EFileCreateTime:       "FileCreateTime",
-	ENetworkConnect:       "NetworkConnect",
-	EProcessTerminate:     "ProcessTerminate",
-	EDriverLoad:           "DriverLoad",
-	EImageLoad:            "ImageLoad",
-	ECreateRemoteThread:   "CreateRemoteThread",
-	ERawAccessRead:        "RawAccessRead",
-	EProcessAccess:        "ProcessAccess",
-	EFileCreate:           "FileCreate",
-	ERegistryEventAdd:     "RegistryEvent",
-	ERegistryEventSet:     "RegistryEvent",
-	ERegistryEventRename:  "RegistryEvent",
-	EFileCreateStreamHash: "FileCreateStreamHash",
-	EPipeEventCreate:      "PipeEvent",
-	EPipeEventConnect:     "PipeEvent",
-	EWmiEventFilter:       "WmiEvent",
-	EWmiEventConsumer:     "WmiEvent",
-	EWmiEventBinding:      "WmiEvent",
-	EDnsQuery:             "DnsQuery",
-	EFileDelete:           "FileDelete",
-}
-
 const (
-	// the maximum number of rules per group
-	MaxRulesPerGroup = 4
+	SchemaDefFilePath = "sensor/sysmon_config_schema_definition.xml"
 	// supported match operations (case insensitive)
 	OIs        = "is"
+	OIsNot     = "is not"
 	OContains  = "contains"
 	OBeginWith = "begin with"
 	OEndWith   = "end with"
 	OImage     = "image" // "Match an image path (full path or only image name). For example: lsass.exe will match c:\windows\system32\lsass.exe"
 )
 
+type SchemaDef struct {
+	Version           float64
+	EventIDToRuleName map[int]string
+	ValidProps        map[string]StringSet
+	RuleNames         StringSet
+}
+
 // Rule is the individual rule for an attribute of an event
+// For example: it represents <TargetObject condition="begin with">HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run</TargetObject>
 type Rule struct {
 	Name    string
 	Cond    string
@@ -57,18 +42,141 @@ type Rule struct {
 }
 
 // RuleGroup is a group of individual rules combined by Rel which either OR or AND.
+// For example: it represents <Rule name="technique_id=T1060" groupRelation="or">...</Rule>
 type RuleGroup struct {
-	Next  *RuleGroup
 	Label string
 	Rel   string
 	Rules []*Rule
 }
 
-// EventFilter contains filtering rules for all events. Two types of rules for each event are inclusion and exclusion:
+// CombinedRule represents how RuleGroups are combined with each other which either OR or AND.
+// For example: it represents  <RuleGroup name="" groupRelation="or">...</RuleGroup>
+type CombinedRule struct {
+	Next       *CombinedRule
+	Label      string
+	Rel        string
+	RuleGroups []*RuleGroup
+}
+
+// MitreATTCKFilter contains filtering rules for all events. Two types of rules for each event are inclusion and exclusion:
 // 'include' means only matched events are included while with 'exclude', the event will be included except if a rule match
-type EventFilter struct {
-	IncludeFilter map[string]*RuleGroup
-	ExcludeFilter map[string]*RuleGroup
+type MitreATTCKFilter struct {
+	SchemaDef *SchemaDef
+	Filters   [2]map[string]*CombinedRule // index 0 for include and 1 for exclude
+}
+
+// NewSchemaDef returns new instance of SchemaDef
+func NewSchemaDef() *SchemaDef {
+	return &SchemaDef{
+		EventIDToRuleName: make(map[int]string),
+		ValidProps:        make(map[string]StringSet),
+		RuleNames:         NewStringSet(),
+	}
+}
+
+// NewMitreATTCKFilter returns new instance of MitreATTCKFilter
+func NewMitreATTCKFilter() (*MitreATTCKFilter, error) {
+	// Load schema definition
+	schemaDef := NewSchemaDef()
+	doc := etree.NewDocument()
+	log.Infof("Loading configuration schema definition from %s\n", SchemaDefFilePath)
+	if err := doc.ReadFromFile(SchemaDefFilePath); err != nil {
+		return nil, err
+	}
+	root := doc.Root()
+	verAttr := root.SelectAttr("schemaversion")
+	if root.Tag != "manifest" || verAttr == nil {
+		return nil, fmt.Errorf("manifest tag must be the root in configuration '%s'", SchemaDefFilePath)
+	}
+	schemaDef.Version, _ = strconv.ParseFloat(verAttr.Value, 64)
+	events := root.SelectElement("events")
+	if events == nil {
+		return nil, fmt.Errorf("failed to find events tag in configuration '%s'", SchemaDefFilePath)
+	}
+	for _, event := range events.ChildElements() {
+		if event.Tag != "event" {
+			return nil, fmt.Errorf("element '%s' is unexpected in parent element 'events' in configuration '%s'", event.Tag, SchemaDefFilePath)
+		}
+		eventID, _ := strconv.Atoi(event.SelectAttrValue("value", ""))
+		ruleName := event.SelectAttrValue("rulename", "")
+		if eventID <= 0 || len(ruleName) == 0 {
+			continue
+		}
+		validProps := NewStringSet()
+		schemaDef.EventIDToRuleName[eventID] = ruleName
+		schemaDef.ValidProps[ruleName] = validProps
+		schemaDef.RuleNames.Add(ruleName)
+
+		for _, data := range event.ChildElements() {
+			if data.Tag != "data" {
+				return nil, fmt.Errorf("element '%s' is unexpected in parent element 'event' in configuration '%s'", event.Tag, SchemaDefFilePath)
+			}
+			propAttr := data.SelectAttr("name")
+			if propAttr != nil {
+				validProps.Add(propAttr.Value)
+			}
+		}
+	}
+
+	// Under each event tag, it's allowed to contain Rule tag
+	for ruleName := range schemaDef.ValidProps {
+		schemaDef.ValidProps[ruleName].Add("Rule")
+	}
+
+	schemaDef.ValidProps["Sysmon"] = NewStringSet()
+	schemaDef.ValidProps["Sysmon"].Add("EventFiltering")
+	schemaDef.ValidProps["EventFiltering"] = NewStringSet()
+	schemaDef.ValidProps["EventFiltering"].Add("RuleGroup")
+	schemaDef.ValidProps["EventFiltering"].AddFromSet(schemaDef.RuleNames)
+	schemaDef.ValidProps["RuleGroup"] = NewStringSet()
+	schemaDef.ValidProps["RuleGroup"].AddFromSet(schemaDef.RuleNames)
+
+	return &MitreATTCKFilter{
+		SchemaDef: schemaDef,
+	}, nil
+}
+
+// NewMitreATTCKFilterFrom returns new instance of MitreATTCKFilter initialized with ruleFilePath
+func NewMitreATTCKFilterFrom(ruleFilePath string) (*MitreATTCKFilter, error) {
+	filter, err := NewMitreATTCKFilter()
+	if err != nil {
+		return nil, err
+	}
+	if err := filter.UpdateFrom(ruleFilePath); err != nil {
+		return nil, err
+	}
+	return filter, nil
+}
+
+// UpdateFrom updates rules from ruleDirPath directory
+func (mf *MitreATTCKFilter) UpdateFromDir(ruleDirPath string) error {
+	return filepath.Walk(ruleDirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() || filepath.Ext(path) != ".xml" {
+			return nil
+		}
+		log.Infof("parsing rules from %s\n", path)
+		return mf.UpdateFrom(path)
+	})
+}
+
+// UpdateFrom updates rules from ruleFilePath file
+func (mf *MitreATTCKFilter) UpdateFrom(ruleFilePath string) error {
+	mitreFilterFile, err := os.Open(ruleFilePath)
+	if err != nil {
+		return err
+	}
+	data, err := ioutil.ReadAll(mitreFilterFile)
+	if err != nil {
+		return err
+	}
+	err = xml.Unmarshal(data, mf)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // isMatched deals with each rule
@@ -79,31 +187,22 @@ func (rule *Rule) isMatched(event *SysmonEvent) bool {
 	}
 	switch rule.Cond {
 	case OIs:
-		if propValue == rule.Value {
-			return true
-		}
+		return propValue == rule.Value
+	case OIsNot:
+		return propValue != rule.Value
 	case OContains:
-		if strings.Contains(propValue, rule.Value) {
-			return true
-		}
+		return strings.Contains(propValue, rule.Value)
 	case OBeginWith:
-		if strings.HasPrefix(propValue, rule.Value) {
-			return true
-		}
+		return strings.HasPrefix(propValue, rule.Value)
 	case OEndWith:
-		if strings.HasSuffix(propValue, rule.Value) {
-			return true
-		}
+		return strings.HasSuffix(propValue, rule.Value)
 	case OImage:
-		if filepath.IsAbs(rule.Value) {
-			if propValue == rule.Value {
-				return true
-			}
-		} else if filepath.Base(propValue) == rule.Value {
-			return true
+		if WindowsIsAbs(rule.Value) {
+			return propValue == rule.Value
 		}
-		log.Warnf("Operation %s not supported\n", rule.Cond)
+		return GetImageName(propValue) == rule.Value
 	}
+	// should not reach here
 	return false
 }
 
@@ -128,138 +227,125 @@ func (rg *RuleGroup) isMatched(event *SysmonEvent) bool {
 	return false
 }
 
-// NewEventFilter returns new instance of EventFilter
-func NewEventFilter() *EventFilter {
-	return new(EventFilter)
-}
-
-// NewEventFilterFrom returns new instance of EventFilter initialized with ruleFilePath
-func NewEventFilterFrom(ruleFilePath string) (*EventFilter, error) {
-	filter := NewEventFilter()
-	if err := filter.UpdateFrom(ruleFilePath); err != nil {
-		return nil, err
+// addRule adds new rule to each rule group
+func (rg *RuleGroup) addRule(name, cond, value, caseSen string) error {
+	isCaseSen, err := strconv.ParseBool(caseSen)
+	if err != nil {
+		return fmt.Errorf("invalid case attribute value '%s'", caseSen)
 	}
-	return filter, nil
-}
-
-// UpdateFrom updates rules from ruleDirPath directory
-func (filter *EventFilter) UpdateFromDir(ruleDirPath string) error {
-	return filepath.Walk(ruleDirPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() || filepath.Ext(path) != ".xml" {
-			return nil
-		}
-		return filter.UpdateFrom(path)
+	value = strings.TrimSpace(value)
+	cond = strings.TrimSpace(cond)
+	if !isCaseSen {
+		value = strings.ToLower(value)
+	}
+	switch cond {
+	case OIs, OIsNot, OContains, OBeginWith, OEndWith, OImage:
+	default:
+		return fmt.Errorf("invalid condition attribute value '%s'", cond)
+	}
+	if len(value) == 0 {
+		return errors.New("the value for a rule cannot be empty")
+	}
+	rg.Rules = append(rg.Rules, &Rule{
+		Name:    strings.TrimSpace(name),
+		Cond:    cond,
+		Value:   value,
+		CaseSen: isCaseSen,
 	})
-}
-
-// UpdateFrom updates rules from ruleFilePath file
-func (filter *EventFilter) UpdateFrom(ruleFilePath string) error {
-	mitreFilterFile, err := os.Open(ruleFilePath)
-	if err != nil {
-		return err
-	}
-	data, err := ioutil.ReadAll(mitreFilterFile)
-	if err != nil {
-		return err
-	}
-	err = xml.Unmarshal(data, filter)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
-// onEventFilter is called whenever encounter a event rule
-func (filter *EventFilter) onEventFilter(ruleName, onMatch string) {
-	switch onMatch {
-	case "include":
-		if filter.IncludeFilter == nil {
-			filter.IncludeFilter = make(map[string]*RuleGroup)
-		}
-	case "exclude":
-		if filter.ExcludeFilter == nil {
-			filter.ExcludeFilter = make(map[string]*RuleGroup)
-		}
+// onEventFilter is called whenever encountering RuleGroup/Event tags
+func (mf *MitreATTCKFilter) onEventFilter(groupRelation, ruleName, onMatch, label string) (*CombinedRule, error) {
+	if groupRelation != "or" && groupRelation != "and" {
+		return nil, fmt.Errorf("invalid groupRelation attribute value '%s'", groupRelation)
 	}
+	if onMatch != "include" && onMatch != "exclude" {
+		return nil, fmt.Errorf("invalid onMatch attribute value '%s'", groupRelation)
+	}
+	filterType := 0
+	if onMatch == "exclude" {
+		filterType = 1
+	}
+	filter := mf.Filters[filterType]
+	if filter == nil { // first seen filter type
+		filter = make(map[string]*CombinedRule)
+		mf.Filters[filterType] = filter
+	}
+	newCombinedRule := &CombinedRule{
+		Label:      strings.TrimSpace(label),
+		Rel:        groupRelation,
+		RuleGroups: make([]*RuleGroup, 0, 4),
+	}
+	if _, ok := filter[ruleName]; !ok { // first seen event type
+		filter[ruleName] = newCombinedRule
+		return newCombinedRule, nil
+	}
+	// insert at tail to preserve order
+	cur := filter[ruleName]
+	for ; cur.Next != nil; cur = cur.Next {
+	}
+	cur.Next = newCombinedRule
+	return newCombinedRule, nil
 }
 
-// onGroupFilter _
-func (filter *EventFilter) onGroupFilter(ruleName, onMatch, label, rel string) *RuleGroup {
-	rel = strings.ToLower(rel)
-	if rel != "or" && rel != "and" {
-		return nil
+// onRuleFilter is called whenever encountering Rule/Property tag
+func (mf *MitreATTCKFilter) onRuleFilter(combinedRule *CombinedRule, label, groupRelation string) (*RuleGroup, error) {
+	if combinedRule == nil {
+		return nil, errors.New("invalid parameters in onRuleFilter")
 	}
-	switch onMatch {
-	case "include":
-		head := filter.IncludeFilter[ruleName]
-		newNode := &RuleGroup{
-			Label: label,
-			Rel:   rel,
-			Rules: make([]*Rule, 0, MaxRulesPerGroup),
-		}
-		if head == nil { // insert at head
-			filter.IncludeFilter[ruleName] = newNode
-			return newNode
-		}
-		// insert at tail to preserve order
-		cur := head
-		for ; cur.Next != nil; cur = cur.Next { // traverse to the last node
-		}
-		cur.Next = newNode
-		return newNode
-	case "exclude":
-		head := filter.ExcludeFilter[ruleName]
-		newNode := &RuleGroup{
-			Label: label,
-			Rel:   rel,
-			Rules: make([]*Rule, 0, MaxRulesPerGroup),
-		}
-		if head == nil { // insert at head
-			filter.ExcludeFilter[ruleName] = newNode
-			return newNode
-		}
-		// insert at tail to preserve order
-		cur := head
-		for ; cur.Next != nil; cur = cur.Next { // traverse to the last node
-		}
-		cur.Next = newNode
-		return newNode
+	if groupRelation != "or" && groupRelation != "and" {
+		return nil, fmt.Errorf("invalid groupRelation attribute value '%s'", groupRelation)
 	}
-	return nil
+	newRg := &RuleGroup{
+		Label: label,
+		Rel:   groupRelation,
+		Rules: make([]*Rule, 0, 4),
+	}
+	combinedRule.RuleGroups = append(combinedRule.RuleGroups, newRg)
+	return newRg, nil
 }
 
-// getAttribute returns value of the attribute name of the tag start
-func getAttribute(start xml.StartElement, name string) string {
-	for _, attr := range start.Attr {
-		if attr.Name.Local == name {
-			return strings.TrimSpace(attr.Value)
-		}
-	}
-	return ""
-}
-
-// hasAttribute returns true if the tag has attribute along with the value (value comparision is case-insensitive)
-func hasAttribute(start xml.StartElement, name, value string) bool {
-	for _, attr := range start.Attr {
-		if attr.Name.Local == name && strings.EqualFold(attr.Value, value) {
-			return true
-		}
-	}
-	return false
-}
-
-// getTagName returns the tag name
-func getTagName(element xml.Token) string {
+// getElementName returns the name of an element
+func getElementName(element xml.Token) string {
 	switch element.(type) {
 	case xml.StartElement:
 		return element.(xml.StartElement).Name.Local
 	case xml.EndElement:
 		return element.(xml.EndElement).Name.Local
+	case xml.Attr:
+		return element.(xml.Attr).Name.Local
 	}
 	return ""
+}
+
+// getAttribute returns value of the attribute name of the tag element
+func getAttribute(element xml.StartElement, name string) (string, error) {
+	for _, attr := range element.Attr {
+		if getElementName(attr) == name {
+			return strings.TrimSpace(attr.Value), nil
+		}
+	}
+	return "", fmt.Errorf("failed to find attribute '%s' of tag %s", name, getElementName(element))
+}
+
+// getAttributeOr returns value of the attribute name of the tag element, if not found return the def value
+func getAttributeOr(element xml.StartElement, name, def string) string {
+	val, err := getAttribute(element, name)
+	if err != nil {
+		return def
+	}
+	return val
+}
+
+// hasAttVal returns true if the tag has attribute along with the value (value comparision is case-insensitive)
+func hasAttVal(element xml.StartElement, name, value string) bool {
+	for _, attr := range element.Attr {
+		if getElementName(attr) == name && strings.EqualFold(attr.Value, value) {
+			return true
+		}
+	}
+	return false
 }
 
 // getContent return the content of tag
@@ -276,144 +362,177 @@ func getContent(d *xml.Decoder) string {
 }
 
 // UnmarshalXML decodes the config in xml format and updates the filter rules
-func (filter *EventFilter) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
-	// check signature of sysmon config file
-	if strings.EqualFold(start.Name.Local, "sysmon") {
-		version, err := strconv.ParseFloat(getAttribute(start, "schemaversion"), 64)
+func (mf *MitreATTCKFilter) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	// check the signature of Sysmon config file
+	if getElementName(start) == "Sysmon" {
+		val, err := getAttribute(start, "schemaversion")
 		if err != nil {
-			return fmt.Errorf("Invalid schemaversion version in xml file")
+			return err
 		}
-		if version > 4.30 {
-			return fmt.Errorf("Unsupported schemaversion version in xml file")
+		ver, err := strconv.ParseFloat(val, 64)
+		if err != nil || ver != mf.SchemaDef.Version {
+			return fmt.Errorf("incorrect or unsupported schema version")
 		}
 	} else {
-		return fmt.Errorf("Unsupported schemaversion version in xml file")
+		return fmt.Errorf("failed to find Sysmon tag in configuration")
 	}
 
-	var childOfRuleGroupTag = false
-	var childOfEventTag = false
-	var childOfRuleGroup = false
-	var ruleName = ""
-	var onMatch = ""
-	var ruleGroup *RuleGroup
+	tokStk := make([]string, 0, 64)
+	var rgRel, rgLabel string
+	var cr *CombinedRule
+	var rg *RuleGroup
 
+	tokStk = append(tokStk, getElementName(start))
 	for { // traverse over nodes (preorder depth-first traversal)
 		token, err := d.Token()
-		if err != nil {
-			if err == io.EOF { // end of tree
-				break
-			}
-			return nil
+		if err != nil && err == io.EOF { // at the end of the input stream
+			break
 		}
+		if token == nil {
+			return err
+		}
+		elementName := getElementName(token)
+		lastElementName := tokStk[len(tokStk)-1]
 		switch token.(type) {
 		case xml.StartElement:
 			element := token.(xml.StartElement)
-			tagName := getTagName(element)
-			if !childOfRuleGroupTag { // find RuleGroup tag first
-				if tagName == "RuleGroup" && hasAttribute(element, "groupRelation", "or") { // only support OR
-					childOfRuleGroupTag = true
-				}
-			} else if !childOfEventTag { // then find event tag
-				ok := false
-				for _, ruleName := range eventIDToRuleName {
-					if ruleName == tagName {
-						ok = true
-						break
+			// check if it's the valid relationship (parent-child)
+			parent := lastElementName
+			if parent == "Rule" {
+				parent = tokStk[len(tokStk)-2] // upwards one level
+			}
+			if !mf.SchemaDef.ValidProps[parent].Has(elementName) {
+				return fmt.Errorf("element %s is unexpected in parent element %s", elementName, lastElementName)
+			}
+			tokStk = append(tokStk, elementName)
+
+			switch lastElementName {
+			case "Sysmon":
+			case "EventFiltering":
+				rgLabel = getAttributeOr(element, "name", "")
+				if elementName == "RuleGroup" { // RuleGroup wraps Event tags
+					rel, err := getAttribute(element, "groupRelation")
+					if err != nil {
+						return err
 					}
-				}
-				if !ok { // if the event cannot be filtered the skip that tag
-					if err := d.Skip(); err != nil { // cannot jump to next tag
+					rgRel = rel
+				} else { // Event tags directly
+					onMatch, err := getAttribute(element, "onmatch")
+					if err != nil {
+						return err
+					}
+					cr, err = mf.onEventFilter("or", elementName, onMatch, rgLabel) // default is OR
+					if err != nil {
 						return err
 					}
 				}
-				ruleName = tagName
-				onMatch = getAttribute(element, "onmatch")
-				switch onMatch {
-				case "include", "exclude":
-					filter.onEventFilter(ruleName, onMatch)
-					childOfEventTag = true
-				default:
-					if err := d.Skip(); err != nil {
+			case "RuleGroup": // RuleGroup wraps Event tags
+				onMatch, err := getAttribute(element, "onmatch")
+				if err != nil {
+					return err
+				}
+				cr, err = mf.onEventFilter(rgRel, elementName, onMatch, rgLabel)
+				if err != nil {
+					return err
+				}
+			case "Rule": // individual rules
+				if rg != nil {
+					cond, err := getAttribute(element, "condition")
+					if err != nil {
+						return err
+					}
+					if err := rg.addRule(elementName, cond, getContent(d), getAttributeOr(element, "case", "false")); err != nil {
 						return err
 					}
 				}
-			} else if !childOfRuleGroup { // inner of event tag
-				label := getAttribute(element, "name")
-				rel := "or" // default is OR
-				if tagName == "Rule" {
-					rel = getAttribute(element, "groupRelation")
-					childOfRuleGroup = true
+			default:
+				if mf.SchemaDef.RuleNames.Has(lastElementName) { // inner of Event tag
+					rel := "or"                // default is OR
+					if elementName == "Rule" { // Rule wraps individual rules
+						if rel, err = getAttribute(element, "groupRelation"); err != nil {
+							return err
+						}
+					}
+
+					rg, err = mf.onRuleFilter(cr, getAttributeOr(element, "name", ""), rel)
+					if err != nil {
+						return err
+					}
+
+					if rg != nil && elementName != "Rule" {
+						cond, err := getAttribute(element, "condition")
+						if err != nil {
+							return err
+						}
+						if err := rg.addRule(elementName, cond, getContent(d), getAttributeOr(element, "case", "false")); err != nil {
+							return err
+						}
+					}
 				}
-				ruleGroup = filter.onGroupFilter(ruleName, onMatch, label, rel)
-				if ruleGroup != nil && tagName != "Rule" {
-					ruleGroup.Rules = append(ruleGroup.Rules, &Rule{
-						Name:  tagName,
-						Cond:  getAttribute(element, "condition"),
-						Value: getContent(d),
-					})
-				}
-			} else { // inner of Rule tag
-				if ruleGroup == nil {
-					break
-				}
-				caseSen := getAttribute(element, "case") == "true"
-				content := getContent(d)
-				if !caseSen { // speed up performance for comparing
-					content = strings.ToLower(content)
-				}
-				ruleGroup.Rules = append(ruleGroup.Rules, &Rule{
-					Name:    tagName,
-					Cond:    getAttribute(element, "condition"),
-					Value:   content,
-					CaseSen: caseSen,
-				})
 			}
 		case xml.EndElement:
-			element := token.(xml.EndElement)
-			tagName := getTagName(element)
-			if tagName == ruleName {
-				childOfEventTag = false
-				ruleName = ""
-			} else if tagName == "RuleGroup" {
-				childOfRuleGroupTag = false
-			} else if tagName == "Rule" {
-				childOfRuleGroup = false
-				ruleGroup = nil
+			if lastElementName != elementName {
+				return fmt.Errorf("unmatched opening %s and closing tag %s", lastElementName, elementName)
+			}
+			tokStk = tokStk[:len(tokStk)-1]
+			switch elementName {
+			case "Rule":
+				rg = nil
+			case "RuleGroup":
+				cr = nil
+			default:
+				if mf.SchemaDef.RuleNames.Has(elementName) {
+					cr = nil
+				}
 			}
 		}
+	}
+	if len(tokStk) > 0 {
+		return errors.New("unbalanced elements")
 	}
 	return nil
 }
 
 // isMatched returns the rule that matches the event
-func (filter *EventFilter) isMatched(event *SysmonEvent, ruleName string, rules map[string]*RuleGroup) *RuleGroup {
-	if rules == nil || rules[ruleName] == nil {
-		return nil
+func (mf *MitreATTCKFilter) isMatched(event *SysmonEvent, ruleName string, filter map[string]*CombinedRule) (bool, string) {
+	if filter == nil || filter[ruleName] == nil {
+		return false, ""
 	}
-	for rg := rules[ruleName]; rg != nil; rg = rg.Next { // traverse over each rule group
-		if rg.isMatched(event) {
-			return rg
+	for cr := filter[ruleName]; cr != nil; cr = cr.Next { // traverse over each CombinedRule
+		switch cr.Rel {
+		case "or":
+			for _, rg := range cr.RuleGroups {
+				if rg.isMatched(event) {
+					return true, rg.Label
+				}
+			}
+		case "and":
+			matched := true
+			for _, rg := range cr.RuleGroups {
+				if !rg.isMatched(event) {
+					matched = false
+					break
+				}
+			}
+			if matched {
+				return true, cr.Label
+			}
 		}
 	}
-	// reach here means nothing matched
-	return nil
+	return false, ""
 }
 
 // GetTechName returns the technique name matched with the event
-func (filter *EventFilter) GetTechName(event *SysmonEvent) string {
-	ruleName, ok := eventIDToRuleName[event.EventID]
+func (mf *MitreATTCKFilter) GetTechName(event *SysmonEvent) string {
+	ruleName, ok := mf.SchemaDef.EventIDToRuleName[event.EventID]
 	if !ok { // unsupported event
 		return ""
 	}
 	// exclude matches take precedence
-	matched := filter.isMatched(event, ruleName, filter.ExcludeFilter)
-	if matched != nil {
+	matched, _ := mf.isMatched(event, ruleName, mf.Filters[1])
+	if matched {
 		return ""
 	}
-
-	matched = filter.isMatched(event, ruleName, filter.IncludeFilter)
-	if matched == nil {
-		return ""
-	}
-	return matched.Label
+	_, techName := mf.isMatched(event, ruleName, mf.Filters[0])
+	return techName
 }

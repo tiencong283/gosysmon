@@ -16,9 +16,11 @@
     -->
 
     <EventFiltering>
-        <RuleGroup name="" groupRelation="or">
+        <RuleGroup name="technique_id=T1015" groupRelation="and">
             <RegistryEvent onmatch="include">
-                <Rule name="technique_id=T1015" groupRelation="or">
+                <!-- avoid duplicate with CreateKey -->
+                <EventType condition="is" case="true">SetValue</EventType>
+                <Rule groupRelation="or">
                     <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\sethc.exe\Debugger</TargetObject>
                     <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\utilman.exe\Debugger</TargetObject>
                     <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\osk.exe\Debugger</TargetObject>

@@ -53,7 +53,7 @@ func (config *Config) init(configFilePath string) error {
 func init() {
 	// setup the logger
 	log.SetOutput(os.Stdout)
-	log.SetLevel(log.InfoLevel)
+	log.SetLevel(log.DebugLevel)
 	log.SetFormatter(&log.TextFormatter{
 		FullTimestamp:   true,
 		TimestampFormat: time.RFC3339,
