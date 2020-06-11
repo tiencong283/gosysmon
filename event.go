@@ -57,16 +57,30 @@ type EventMetadata struct {
 // sysmon event representation
 type SysmonEvent struct {
 	EventMetadata
-	EventData    map[string]string `json:"event_data"`
+	EventData map[string]string `json:"event_data"`
+}
+
+// isSysmonEvent returns true if the event is about the Sysmon service
+func (event *SysmonEvent) isSysmonEvent() bool {
+	switch event.EventID {
+	case EServiceStateChange, EConfigStateChange, ESysmonError:
+		return true
+	}
+	return false
+}
+
+// isSystemEvent returns true if the event's scope is the system wide
+func (event *SysmonEvent) isSystemEvent() bool {
+	switch event.EventID {
+	case EDriverLoad, EWmiEventFilter, EWmiEventConsumer, EWmiEventBinding:
+		return true
+	}
+	return false
 }
 
 // isProcessEvent returns true if the event caused by a process. In other words, the event must contain  information to identify that process
 func (event *SysmonEvent) isProcessEvent() bool {
-	switch event.EventID {
-	case EServiceStateChange, EDriverLoad, EConfigStateChange, EWmiEventFilter, EWmiEventConsumer, EWmiEventBinding, ESysmonError:
-		return false
-	}
-	return true
+	return !event.isSysmonEvent() && !event.isSystemEvent()
 }
 
 // event message which wraps event along with other information+

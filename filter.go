@@ -31,13 +31,16 @@ type RuleFilterer interface {
 
 // ModelFilter is the filter that builds models of detector for abnormal detection
 type ModelFilterer interface {
-	// IsSupported return true if if support event type
+	// IsSupported return true if if support the event
 	IsSupported(event *SysmonEvent) bool
 	// Init initializes the model
 	Init() error
 	// TrainAndPredict do updates the profile and report any detection
 	TrainAndPredict(event *SysmonEvent) *RContext
 }
+
+// *********************************************************************************************************************
+// implementation
 
 // FilterEngine is the detector engine
 type FilterEngine struct {

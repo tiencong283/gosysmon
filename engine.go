@@ -11,8 +11,6 @@ import (
 type Engine struct {
 	Config          Config
 	Reader          *kafka.Reader
-	NumOfWorkers    int
-	WorkerChans     []chan *SysmonEvent
 	HostManager     *HostManager
 	FilterEngine    *FilterEngine
 	ExtractorEngine *ExtractorEngine
@@ -25,12 +23,10 @@ func NewEngine(configFilePath string, numOfWorkers int) (*Engine, error) {
 	}
 
 	engine := &Engine{
-		NumOfWorkers:    numOfWorkers,
 		HostManager:     NewHostManager(),
 		FilterEngine:    NewFilterEninge(),
 		ExtractorEngine: NewExtractorEngine(),
 	}
-	engine.WorkerChans = make([]chan *SysmonEvent, engine.NumOfWorkers)
 
 	if err := engine.Config.init(configFilePath); err != nil {
 		return nil, err
@@ -53,12 +49,7 @@ func NewEngine(configFilePath string, numOfWorkers int) (*Engine, error) {
 
 // Start starts receiving messages and distribute to workers
 func (engine *Engine) Start() error {
-	for i := 0; i < engine.NumOfWorkers; i++ {
-		engine.WorkerChans[i] = make(chan *SysmonEvent, MsgBufSize)
-		go engine.WorkerHandler(i)
-	}
-	nextIdx := 0
-	hostToChanIdx := make(map[string]int, 0)
+	go engine.HostManager.Start()
 
 	var msg = new(Message)
 	for {
@@ -69,27 +60,9 @@ func (engine *Engine) Start() error {
 		if err := json.Unmarshal(rawMsg.Value, &msg); err != nil {
 			log.Warn(err)
 		}
-		// distribute the message to worker
-		chanIdx, ok := hostToChanIdx[msg.Winlog.ComputerName]
-		if !ok {
-			chanIdx = nextIdx
-			hostToChanIdx[msg.Winlog.ComputerName] = nextIdx
-			nextIdx = (nextIdx + 1) % engine.NumOfWorkers
-		}
-		engine.WorkerChans[chanIdx] <- &msg.Winlog
+		event := &msg.Winlog
+		engine.HostManager.EventCh <- event
 		msg = new(Message)
-	}
-}
-
-// WorkerHandler is the thread for processing incoming events
-func (engine *Engine) WorkerHandler(chanIdx int) {
-	for event := range engine.WorkerChans[chanIdx] {
-		_ = engine.ExtractorEngine.Transform(event)
-		label := engine.FilterEngine.RuleFilter.GetTechName(event)
-		if len(label) > 0 {
-			log.Println(ToJson(event))
-			log.Println(label)
-		}
 	}
 }
 

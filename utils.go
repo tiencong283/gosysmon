@@ -30,6 +30,21 @@ func ToJson(v interface{}) string {
 	}
 	return string(bytes)
 }
+
+// StringToMap converts the string in format: key1=value1,key2=value2,... to the map
+func StringToMap(s string) map[string]string {
+	tokens := strings.Split(s, ",")
+	m := make(map[string]string, len(tokens))
+	for _, token := range tokens {
+		equalAt := strings.IndexByte(token, '=')
+		if equalAt == -1 || equalAt == 0 || equalAt == len(token)-1 {
+			continue
+		}
+		m[token[:equalAt]] = token[equalAt+1:]
+	}
+	return m
+}
+
 // GetImageName returns the executable name of the path
 func GetImageName(path string) string {
 	if path == "" {
