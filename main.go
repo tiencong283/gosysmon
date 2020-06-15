@@ -3,12 +3,11 @@ package main
 import (
 	_ "github.com/segmentio/kafka-go/gzip"
 	log "github.com/sirupsen/logrus"
-	"runtime"
 )
 
 // the entry point
 func main() {
-	engine, err := NewEngine(ConfigFilePath, runtime.GOMAXPROCS(0))
+	engine, err := NewEngine(ConfigFilePath)
 	if err != nil {
 		log.Fatal(err)
 	}

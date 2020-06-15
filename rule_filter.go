@@ -15,8 +15,10 @@ import (
 )
 
 const (
+	FilterName        = "Rule-based Filter"
+	RuleDirPath       = "rules"
 	SchemaDefFilePath = "sensor/sysmon_config_schema_definition.xml"
-	// supported match operations (case insensitive)
+	// supported match operations (case insensitive by default)
 	OIs        = "is"
 	OIsNot     = "is not"
 	OContains  = "contains"
@@ -58,14 +60,14 @@ type CombinedRule struct {
 	RuleGroups []*RuleGroup
 }
 
-// MitreATTCKFilter contains filtering rules for all events. Two types of rules for each event are inclusion and exclusion:
+// RuleFilter contains filtering rules for some events. Two types of rules for each event are inclusion and exclusion:
 // 'include' means only matched events are included while with 'exclude', the event will be included except if a rule match
-type MitreATTCKFilter struct {
+type RuleFilter struct {
 	SchemaDef *SchemaDef
 	Filters   [2]map[string]*CombinedRule // index 0 for include and 1 for exclude
+	CommonFilterer
 }
 
-// NewSchemaDef returns new instance of SchemaDef
 func NewSchemaDef() *SchemaDef {
 	return &SchemaDef{
 		EventIDToRuleName: make(map[int]string),
@@ -74,28 +76,41 @@ func NewSchemaDef() *SchemaDef {
 	}
 }
 
-// NewMitreATTCKFilter returns new instance of MitreATTCKFilter
-func NewMitreATTCKFilter() (*MitreATTCKFilter, error) {
+func NewRuleFilter() *RuleFilter {
+	return &RuleFilter{
+		SchemaDef:      NewSchemaDef(),
+		Filters:        [2]map[string]*CombinedRule{},
+		CommonFilterer: NewCommonFilterer(FilterName),
+	}
+}
+
+func (mf *RuleFilter) IsSupported(event *SysmonEvent) bool {
+	return event.isProcessEvent()
+}
+
+// Init loads rule's schema definition and rules
+func (mf *RuleFilter) Init() error {
+	schemaDef := mf.SchemaDef
+
 	// Load schema definition
-	schemaDef := NewSchemaDef()
 	doc := etree.NewDocument()
 	log.Infof("Loading configuration schema definition from %s\n", SchemaDefFilePath)
 	if err := doc.ReadFromFile(SchemaDefFilePath); err != nil {
-		return nil, err
+		return err
 	}
 	root := doc.Root()
 	verAttr := root.SelectAttr("schemaversion")
 	if root.Tag != "manifest" || verAttr == nil {
-		return nil, fmt.Errorf("manifest tag must be the root in configuration '%s'", SchemaDefFilePath)
+		return fmt.Errorf("manifest tag must be the root in configuration '%s'", SchemaDefFilePath)
 	}
 	schemaDef.Version, _ = strconv.ParseFloat(verAttr.Value, 64)
 	events := root.SelectElement("events")
 	if events == nil {
-		return nil, fmt.Errorf("failed to find events tag in configuration '%s'", SchemaDefFilePath)
+		return fmt.Errorf("failed to find events tag in configuration '%s'", SchemaDefFilePath)
 	}
 	for _, event := range events.ChildElements() {
 		if event.Tag != "event" {
-			return nil, fmt.Errorf("element '%s' is unexpected in parent element 'events' in configuration '%s'", event.Tag, SchemaDefFilePath)
+			return fmt.Errorf("element '%s' is unexpected in parent element 'events' in configuration '%s'", event.Tag, SchemaDefFilePath)
 		}
 		eventID, _ := strconv.Atoi(event.SelectAttrValue("value", ""))
 		ruleName := event.SelectAttrValue("rulename", "")
@@ -109,7 +124,7 @@ func NewMitreATTCKFilter() (*MitreATTCKFilter, error) {
 
 		for _, data := range event.ChildElements() {
 			if data.Tag != "data" {
-				return nil, fmt.Errorf("element '%s' is unexpected in parent element 'event' in configuration '%s'", event.Tag, SchemaDefFilePath)
+				return fmt.Errorf("element '%s' is unexpected in parent element 'event' in configuration '%s'", event.Tag, SchemaDefFilePath)
 			}
 			propAttr := data.SelectAttr("name")
 			if propAttr != nil {
@@ -131,25 +146,23 @@ func NewMitreATTCKFilter() (*MitreATTCKFilter, error) {
 	schemaDef.ValidProps["RuleGroup"] = NewStringSet()
 	schemaDef.ValidProps["RuleGroup"].AddFromSet(schemaDef.RuleNames)
 
-	return &MitreATTCKFilter{
-		SchemaDef: schemaDef,
-	}, nil
+	if err := mf.LoadFromDir(RuleDirPath); err != nil {
+		return err
+	}
+	return nil
 }
 
-// NewMitreATTCKFilterFrom returns new instance of MitreATTCKFilter initialized with ruleFilePath
-func NewMitreATTCKFilterFrom(ruleFilePath string) (*MitreATTCKFilter, error) {
-	filter, err := NewMitreATTCKFilter()
-	if err != nil {
-		return nil, err
+func (mf *RuleFilter) Start() {
+	for event := range mf.EventCh {
+		techID := mf.GetTechID(event)
+		if len(techID) == 0 {
+			continue
+		}
 	}
-	if err := filter.UpdateFrom(ruleFilePath); err != nil {
-		return nil, err
-	}
-	return filter, nil
 }
 
-// UpdateFrom updates rules from ruleDirPath directory
-func (mf *MitreATTCKFilter) UpdateFromDir(ruleDirPath string) error {
+// LoadFromDir updates rules from ruleDirPath directory
+func (mf *RuleFilter) LoadFromDir(ruleDirPath string) error {
 	return filepath.Walk(ruleDirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -162,8 +175,8 @@ func (mf *MitreATTCKFilter) UpdateFromDir(ruleDirPath string) error {
 	})
 }
 
-// UpdateFrom updates rules from ruleFilePath file
-func (mf *MitreATTCKFilter) UpdateFrom(ruleFilePath string) error {
+// UpdateFrom updates rules in ruleFilePath file
+func (mf *RuleFilter) UpdateFrom(ruleFilePath string) error {
 	mitreFilterFile, err := os.Open(ruleFilePath)
 	if err != nil {
 		return err
@@ -256,7 +269,7 @@ func (rg *RuleGroup) addRule(name, cond, value, caseSen string) error {
 }
 
 // onEventFilter is called whenever encountering RuleGroup/Event tags
-func (mf *MitreATTCKFilter) onEventFilter(groupRelation, ruleName, onMatch, label string) (*CombinedRule, error) {
+func (mf *RuleFilter) onEventFilter(groupRelation, ruleName, onMatch, label string) (*CombinedRule, error) {
 	if groupRelation != "or" && groupRelation != "and" {
 		return nil, fmt.Errorf("invalid groupRelation attribute value '%s'", groupRelation)
 	}
@@ -290,7 +303,7 @@ func (mf *MitreATTCKFilter) onEventFilter(groupRelation, ruleName, onMatch, labe
 }
 
 // onRuleFilter is called whenever encountering Rule/Property tag
-func (mf *MitreATTCKFilter) onRuleFilter(combinedRule *CombinedRule, label, groupRelation string) (*RuleGroup, error) {
+func (mf *RuleFilter) onRuleFilter(combinedRule *CombinedRule, label, groupRelation string) (*RuleGroup, error) {
 	if combinedRule == nil {
 		return nil, errors.New("invalid parameters in onRuleFilter")
 	}
@@ -362,7 +375,7 @@ func getContent(d *xml.Decoder) string {
 }
 
 // UnmarshalXML decodes the config in xml format and updates the filter rules
-func (mf *MitreATTCKFilter) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+func (mf *RuleFilter) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	// check the signature of Sysmon config file
 	if getElementName(start) == "Sysmon" {
 		val, err := getAttribute(start, "schemaversion")
@@ -494,7 +507,7 @@ func (mf *MitreATTCKFilter) UnmarshalXML(d *xml.Decoder, start xml.StartElement)
 }
 
 // isMatched returns the rule that matches the event
-func (mf *MitreATTCKFilter) isMatched(event *SysmonEvent, ruleName string, filter map[string]*CombinedRule) (bool, string) {
+func (mf *RuleFilter) isMatched(event *SysmonEvent, ruleName string, filter map[string]*CombinedRule) (bool, string) {
 	if filter == nil || filter[ruleName] == nil {
 		return false, ""
 	}
@@ -522,8 +535,8 @@ func (mf *MitreATTCKFilter) isMatched(event *SysmonEvent, ruleName string, filte
 	return false, ""
 }
 
-// GetTechName returns the technique name matched with the event
-func (mf *MitreATTCKFilter) GetTechName(event *SysmonEvent) string {
+// GetTechID returns the technique ID matched with the event
+func (mf *RuleFilter) GetTechID(event *SysmonEvent) string {
 	ruleName, ok := mf.SchemaDef.EventIDToRuleName[event.EventID]
 	if !ok { // unsupported event
 		return ""
@@ -533,6 +546,6 @@ func (mf *MitreATTCKFilter) GetTechName(event *SysmonEvent) string {
 	if matched {
 		return ""
 	}
-	_, techName := mf.isMatched(event, ruleName, mf.Filters[0])
-	return techName
+	_, label := mf.isMatched(event, ruleName, mf.Filters[0])
+	return GetKeyFrom(label, "technique_id")
 }

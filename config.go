@@ -20,14 +20,15 @@ const (
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
-// global configuration
+// Config is the application configuration
 type Config struct {
 	KafkaBrokers string
 	KafkaTopic   string
 	RuleDirPath  string
 }
 
-func (config *Config) init(configFilePath string) error {
+// InitFrom reads configuration from file configFilePath
+func (config *Config) InitFrom(configFilePath string) error {
 	// reading configuration
 	viper.SetConfigName(configFilePath)
 	viper.SetConfigType("yaml")

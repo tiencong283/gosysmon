@@ -45,6 +45,12 @@ func StringToMap(s string) map[string]string {
 	return m
 }
 
+// GetKeyFrom returns the value of the key s in format: key1=value1,key2=value2,...
+func GetKeyFrom(s, key string) string {
+	m := StringToMap(s)
+	return m[key]
+}
+
 // GetImageName returns the executable name of the path
 func GetImageName(path string) string {
 	if path == "" {

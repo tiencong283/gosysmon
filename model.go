@@ -11,7 +11,6 @@ const (
 	PSRunning = iota
 	PSStopped
 
-	ChanBufSize = 1000000
 	TimeFormat  = "2006-01-02 15:04:05.999999999"
 )
 
@@ -114,7 +113,7 @@ type HostManager struct {
 func NewHostManager() *HostManager {
 	return &HostManager{
 		Hosts:   make(map[string]*Host),
-		EventCh: make(chan *SysmonEvent, ChanBufSize),
+		EventCh: make(chan *SysmonEvent, EventChBufSize),
 		logger:  log.WithField("section", "HostManager"),
 	}
 }

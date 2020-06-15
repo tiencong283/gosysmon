@@ -5,7 +5,21 @@ import (
 	"errors"
 	"github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
+	"strings"
 )
+
+// FilterEngine is the detector engine
+type FilterEngine struct {
+	Filters []MitreATTCKFilterer
+}
+
+func (fe *FilterEngine) Register(newFilter MitreATTCKFilterer) error {
+	if err := newFilter.Init(); err != nil {
+		return err
+	}
+	fe.Filters = append(fe.Filters, newFilter)
+	return nil
+}
 
 // the app engine
 type Engine struct {
@@ -16,9 +30,16 @@ type Engine struct {
 	ExtractorEngine *ExtractorEngine
 }
 
-// NewEngine returns new instance of Engine initialized
-func NewEngine(configFilePath string, numOfWorkers int) (*Engine, error) {
-	if len(configFilePath) == 0 && numOfWorkers <= 0 {
+func NewFilterEninge() *FilterEngine {
+	return &FilterEngine{
+		Filters: make([]MitreATTCKFilterer, 0),
+	}
+}
+
+// NewEngine returns a new NewEngine with configFilePath as the configuration file
+func NewEngine(configFilePath string) (*Engine, error) {
+	configFilePath = strings.TrimSpace(configFilePath)
+	if len(configFilePath) == 0 {
 		return nil, errors.New("invalid parameters")
 	}
 
@@ -28,7 +49,7 @@ func NewEngine(configFilePath string, numOfWorkers int) (*Engine, error) {
 		ExtractorEngine: NewExtractorEngine(),
 	}
 
-	if err := engine.Config.init(configFilePath); err != nil {
+	if err := engine.Config.InitFrom(configFilePath); err != nil {
 		return nil, err
 	}
 	engine.Reader = kafka.NewReader(kafka.ReaderConfig{
