@@ -51,21 +51,6 @@ func GetKeyFrom(s, key string) string {
 	return m[key]
 }
 
-// GetImageName returns the executable name of the path
-func GetImageName(path string) string {
-	if path == "" {
-		return ""
-	}
-	i := len(path) - 1
-	for i >= 0 && path[i] != '\\' {
-		i--
-	}
-	if i >= 0 {
-		path = path[i+1:]
-	}
-	return path
-}
-
 // copy from https://github.com/golang/go/blob/master/src/path/filepath/path_windows.go
 
 func isSlash(c uint8) bool {
@@ -147,4 +132,31 @@ func WindowsIsAbs(path string) (b bool) {
 		return false
 	}
 	return isSlash(path[0])
+}
+
+// GetImageName returns the executable name of the path
+func GetImageName(path string) string {
+	if path == "" {
+		return ""
+	}
+	// Strip trailing slashes
+	for len(path) > 0 && path[len(path)-1] == '\\' {
+		path = path[0 : len(path)-1]
+	}
+	// Throw away volume name
+	path = path[volumeNameLen(path):]
+	// Find the last element
+	i := len(path) - 1
+	for i >= 0 && path[i] != '\\' {
+		i--
+	}
+	if i >= 0 {
+		path = path[i+1:]
+	}
+	return path
+}
+
+func GetDir(path string) string {
+	dir := path[:len(path)-len(GetImageName(path))]
+	return strings.TrimRight(dir, "\\")
 }

@@ -1,9 +1,15 @@
 package main
 
+import "time"
+
 /*
 	These event structures are quickly derived from json using https://github.com/ChimeraCoder/gojson
 	Only choose used, useful features so it's not complete
 */
+
+const (
+	TimeFormat = "2006-01-02 15:04:05.999999999"
+)
 
 // E stands for event
 const (
@@ -67,6 +73,23 @@ func (event *SysmonEvent) isSysmonEvent() bool {
 		return true
 	}
 	return false
+}
+
+func (event *SysmonEvent) get(name string) string {
+	return event.EventData[name]
+}
+
+func (event *SysmonEvent) set(name, value string) {
+	event.EventData[name] = value
+}
+
+// getters for frequent used fields
+func (event *SysmonEvent) timestamp() *time.Time {
+	ts, err := time.Parse(TimeFormat, event.EventData["UtcTime"])
+	if err != nil {
+		return nil
+	}
+	return &ts
 }
 
 // isSystemEvent returns true if the event's scope is the system wide

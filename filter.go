@@ -1,30 +1,80 @@
 package main
 
-import log "github.com/sirupsen/logrus"
+import (
+	log "github.com/sirupsen/logrus"
+	"io/ioutil"
+	"os"
+)
 
 const (
 	EventChBufSize = 1000000
 	AlertChBufSize = 1000
 )
 
+type RawAttackPattern struct {
+	Type            string `json:"type"`
+	Name            string `json:"name"`
+	KillChainPhases []struct {
+		KillChainName string `json:"kill_chain_name"`
+		PhaseName     string `json:"phase_name"`
+	} `json:"kill_chain_phases"`
+	ExternalReferences []struct {
+		ExternalID string `json:"external_id,omitempty"`
+		SourceName string `json:"source_name"`
+		URL        string `json:"url"`
+	} `json:"external_references"`
+}
+
+type AttackPattern struct {
+	Id, Url, Name string
+	Tactics       []string
+}
+
+var Techniques = make(map[string]*AttackPattern, 0)
+
+type RContextId struct {
+	ProviderGUID, ProcessGuid string
+}
+
 // RContext represents an alert
 type RContext struct {
-	Context map[string]string
-	Message string
-	TechID  string
+	RContextId
+	Context   map[string]string
+	Message   string
+	Technique *AttackPattern
+}
+
+func NewRContext(techID, message string, event *SysmonEvent) *RContext {
+	return &RContext{
+		Context:   make(map[string]string),
+		Message:   message,
+		Technique: Techniques[techID],
+		RContextId: RContextId{
+			ProviderGUID: event.ProviderGUID,
+			ProcessGuid:  event.get("ProcessGuid"),
+		},
+	}
+}
+
+func (r *RContext) MergeContext(m map[string]string) {
+	for k, v := range m {
+		r.Context[k] = v
+	}
 }
 
 // ModelFilter is the filter that builds models of detector for abnormal detection
 type MitreATTCKFilterer interface {
 	IsSupported(event *SysmonEvent) bool
 	Init() error
+	EventCh() chan *SysmonEvent
+	SetAlertCh(alertCh chan *RContext)
 	Start()
 }
 
 // CommonFilterer is the common properties of MitreATTCKFilterers
 type CommonFilterer struct {
 	Name    string
-	EventCh chan *SysmonEvent
+	eventCh chan *SysmonEvent
 	AlertCh chan *RContext
 	logger  *log.Entry
 }
@@ -32,8 +82,43 @@ type CommonFilterer struct {
 func NewCommonFilterer(name string) CommonFilterer {
 	return CommonFilterer{
 		Name:    name,
-		EventCh: make(chan *SysmonEvent, EventChBufSize),
-		AlertCh: make(chan *RContext, AlertChBufSize),
+		eventCh: make(chan *SysmonEvent, EventChBufSize),
 		logger:  log.WithField("FilterId", name),
+	}
+}
+
+func init() {
+	// initialize
+	file, err := os.Open("resources/enterprise-attack.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	bytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	attckContent := struct {
+		Objects []RawAttackPattern `json:"objects"`
+	}{}
+	if err := json.Unmarshal(bytes, &attckContent); err != nil {
+		log.Fatal(err)
+	}
+	for _, object := range attckContent.Objects {
+		if object.Type != "attack-pattern" {
+			continue
+		}
+		id := object.ExternalReferences[0].ExternalID
+		Techniques[id] = &AttackPattern{
+			Id:      id,
+			Url:     object.ExternalReferences[0].URL,
+			Name:    object.Name,
+			Tactics: make([]string, 0),
+		}
+		for _, kc := range object.KillChainPhases {
+			if kc.KillChainName == "mitre-attack" {
+				Techniques[id].Tactics = append(Techniques[id].Tactics, kc.PhaseName)
+			}
+		}
 	}
 }

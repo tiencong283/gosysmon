@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"strings"
 )
 
@@ -55,17 +54,15 @@ func (e *RegistryExtractor) IsSupported(event *SysmonEvent) bool {
 }
 
 func (e *RegistryExtractor) Transform(event *SysmonEvent) error {
-	regTarget, ok := event.EventData["TargetObject"]
-	if !ok {
-		return errors.New("cannot find TargetObject field in registry event")
-	}
+	regTarget := event.get("TargetObject")
+
 	if strings.HasPrefix(regTarget, "HKU\\") {
 		tokens := strings.SplitN(regTarget, "\\", 3)
 		if len(tokens) >= 3 {
 			tokens[1] = tokens[0]
 			tokens = tokens[1:]
-			tranformed := strings.Join(tokens, "\\")
-			event.EventData["TargetObject"] = tranformed
+			transformed := strings.Join(tokens, "\\")
+			event.set("TargetObject", transformed)
 		}
 	}
 	return nil

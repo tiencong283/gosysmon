@@ -11,14 +11,30 @@ import (
 // FilterEngine is the detector engine
 type FilterEngine struct {
 	Filters []MitreATTCKFilterer
+	AlertCh chan *RContext
 }
 
 func (fe *FilterEngine) Register(newFilter MitreATTCKFilterer) error {
 	if err := newFilter.Init(); err != nil {
 		return err
 	}
+	newFilter.SetAlertCh(fe.AlertCh)
 	fe.Filters = append(fe.Filters, newFilter)
 	return nil
+}
+
+func (fe *FilterEngine) Broadcast(event *SysmonEvent) {
+	for _, filter := range fe.Filters {
+		if filter.IsSupported(event) {
+			filter.EventCh() <- event
+		}
+	}
+}
+
+func (fe *FilterEngine) Start() {
+	for _, filter := range fe.Filters {
+		go filter.Start()
+	}
 }
 
 // the app engine
@@ -30,9 +46,10 @@ type Engine struct {
 	ExtractorEngine *ExtractorEngine
 }
 
-func NewFilterEninge() *FilterEngine {
+func NewFilterEninge(alertCh chan *RContext) *FilterEngine {
 	return &FilterEngine{
 		Filters: make([]MitreATTCKFilterer, 0),
+		AlertCh: alertCh,
 	}
 }
 
@@ -43,15 +60,18 @@ func NewEngine(configFilePath string) (*Engine, error) {
 		return nil, errors.New("invalid parameters")
 	}
 
+	// pipeline
+	AlertCh := make(chan *RContext, AlertChBufSize)
 	engine := &Engine{
-		HostManager:     NewHostManager(),
-		FilterEngine:    NewFilterEninge(),
+		HostManager:     NewHostManager(AlertCh),
+		FilterEngine:    NewFilterEninge(AlertCh),
 		ExtractorEngine: NewExtractorEngine(),
 	}
 
 	if err := engine.Config.InitFrom(configFilePath); err != nil {
 		return nil, err
 	}
+
 	engine.Reader = kafka.NewReader(kafka.ReaderConfig{
 		Brokers:     []string{engine.Config.KafkaBrokers},
 		Topic:       engine.Config.KafkaTopic,
@@ -59,18 +79,17 @@ func NewEngine(configFilePath string) (*Engine, error) {
 		MaxBytes:    10e6,
 		StartOffset: 0,
 	})
-
-	if err := engine.FilterEngine.Init(engine.Config.RuleDirPath); err != nil {
+	engine.ExtractorEngine.InitDefault()
+	if err := engine.FilterEngine.Register(NewRuleFilter()); err != nil {
 		return nil, err
 	}
-	engine.ExtractorEngine.InitDefault()
-
 	return engine, nil
 }
 
 // Start starts receiving messages and distribute to workers
 func (engine *Engine) Start() error {
 	go engine.HostManager.Start()
+	go engine.FilterEngine.Start()
 
 	var msg = new(Message)
 	for {
@@ -83,6 +102,7 @@ func (engine *Engine) Start() error {
 		}
 		event := &msg.Winlog
 		engine.HostManager.EventCh <- event
+		engine.FilterEngine.Broadcast(event)
 		msg = new(Message)
 	}
 }

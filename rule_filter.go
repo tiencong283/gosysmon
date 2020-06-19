@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	FilterName        = "Rule-based Filter"
 	RuleDirPath       = "rules"
 	SchemaDefFilePath = "sensor/sysmon_config_schema_definition.xml"
 	// supported match operations (case insensitive by default)
@@ -24,7 +23,8 @@ const (
 	OContains  = "contains"
 	OBeginWith = "begin with"
 	OEndWith   = "end with"
-	OImage     = "image" // "Match an image path (full path or only image name). For example: lsass.exe will match c:\windows\system32\lsass.exe"
+	OImage     = "image"     // "Match an image path (full path or only image name). For example: lsass.exe will match c:\windows\system32\lsass.exe"
+	ODir       = "directory" // use the all but last element of path, e.g the path's directory
 )
 
 type SchemaDef struct {
@@ -80,7 +80,7 @@ func NewRuleFilter() *RuleFilter {
 	return &RuleFilter{
 		SchemaDef:      NewSchemaDef(),
 		Filters:        [2]map[string]*CombinedRule{},
-		CommonFilterer: NewCommonFilterer(FilterName),
+		CommonFilterer: NewCommonFilterer("Rule-based Filter"),
 	}
 }
 
@@ -152,12 +152,23 @@ func (mf *RuleFilter) Init() error {
 	return nil
 }
 
+func (mf *RuleFilter) EventCh() chan *SysmonEvent {
+	return mf.eventCh
+}
+
+func (mf *RuleFilter) SetAlertCh(alertCh chan *RContext) {
+	mf.AlertCh = alertCh
+}
+
 func (mf *RuleFilter) Start() {
-	for event := range mf.EventCh {
+	for event := range mf.eventCh {
 		techID := mf.GetTechID(event)
 		if len(techID) == 0 {
 			continue
 		}
+		alert := NewRContext(techID, "", event)
+		alert.MergeContext(event.EventData)
+		mf.AlertCh <- alert
 	}
 }
 
@@ -194,7 +205,7 @@ func (mf *RuleFilter) UpdateFrom(ruleFilePath string) error {
 
 // isMatched deals with each rule
 func (rule *Rule) isMatched(event *SysmonEvent) bool {
-	propValue := event.EventData[rule.Name]
+	propValue := event.get(rule.Name)
 	if !rule.CaseSen {
 		propValue = strings.ToLower(propValue)
 	}
@@ -214,6 +225,8 @@ func (rule *Rule) isMatched(event *SysmonEvent) bool {
 			return propValue == rule.Value
 		}
 		return GetImageName(propValue) == rule.Value
+	case ODir:
+		return GetDir(propValue) == rule.Value
 	}
 	// should not reach here
 	return false
@@ -252,7 +265,7 @@ func (rg *RuleGroup) addRule(name, cond, value, caseSen string) error {
 		value = strings.ToLower(value)
 	}
 	switch cond {
-	case OIs, OIsNot, OContains, OBeginWith, OEndWith, OImage:
+	case OIs, OIsNot, OContains, OBeginWith, OEndWith, OImage, ODir:
 	default:
 		return fmt.Errorf("invalid condition attribute value '%s'", cond)
 	}

@@ -36,9 +36,8 @@
     <EventFiltering>
         <RuleGroup name="technique_id=T1060" groupRelation="and">
             <RegistryEvent onmatch="include">
-                <!-- avoid duplicate with CreateKey -->
-                <EventType condition="is" case="true">SetValue</EventType>
 
+                <EventType condition="is" case="true">SetValue</EventType>
                 <Rule groupRelation="or">
                     <TargetObject condition="begin with">HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run</TargetObject>
                     <TargetObject condition="begin with">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run</TargetObject>
@@ -57,6 +56,7 @@
                     <TargetObject condition="begin with">HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run</TargetObject>
                     <TargetObject condition="begin with">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run</TargetObject>
                 </Rule>
+
             </RegistryEvent>
         </RuleGroup>
     </EventFiltering>

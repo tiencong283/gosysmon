@@ -10,8 +10,6 @@ const (
 	// process running, process stopped
 	PSRunning = iota
 	PSStopped
-
-	TimeFormat  = "2006-01-02 15:04:05.999999999"
 )
 
 type ListHead struct {
@@ -39,6 +37,8 @@ type Process struct {
 	Parent   *Process
 	Children ListHead `json:"-"`
 	Sibling  ListHead `json:"-"`
+
+	Alerts []*RContext
 }
 
 // client representation
@@ -89,6 +89,7 @@ func (host *Host) AddProcess(pGuid, pid, image, cmd string) *Process {
 		ProcessId:   processId,
 		Image:       image,
 		CommandLine: cmd,
+		Alerts:      make([]*RContext, 0, 32),
 	}
 	proc.Sibling.Process = proc
 	proc.Children.Process = proc
@@ -106,71 +107,90 @@ func (host *Host) GetNumberOfProcesses() int {
 type HostManager struct {
 	Hosts   map[string]*Host
 	EventCh chan *SysmonEvent
+	AlertCh chan *RContext
+	Alerts  []*RContext
 	logger  *log.Entry
 }
 
 // NewHostManager returns new instance of HostManager
-func NewHostManager() *HostManager {
+func NewHostManager(AlertCh chan *RContext) *HostManager {
 	return &HostManager{
 		Hosts:   make(map[string]*Host),
 		EventCh: make(chan *SysmonEvent, EventChBufSize),
+		AlertCh: AlertCh,
+		Alerts:  make([]*RContext, 0, AlertChBufSize*10),
 		logger:  log.WithField("section", "HostManager"),
 	}
 }
 
 // Start is the thread entry point
 func (hm *HostManager) Start() {
-	for event := range hm.EventCh {
-		if event.isProcessEvent() {
-			hm.OnProcessEvent(event)
+	for {
+		select {
+		case event := <-hm.EventCh:
+			if event.isProcessEvent() {
+				hm.OnProcessEvent(event)
+			}
+		case alert := <-hm.AlertCh:
+			hm.OnAlert(alert)
 		}
+	}
+}
+
+// OnAlert updates the alert into its process
+func (hm *HostManager) OnAlert(alert *RContext) {
+	log.Debug(ToJson(alert))
+	host := hm.GetHost(alert.ProviderGUID)
+	if host == nil {
+		hm.AlertCh <- alert
+	} else {
+		proc := host.GetProcess(alert.ProcessGuid)
+		if proc == nil { // in rare cases when the process is not mapped to the tree yet (some kind of delays)
+			hm.AlertCh <- alert
+			return
+		}
+		proc.Alerts = append(proc.Alerts, alert)
 	}
 }
 
 // OnProcessEvent updates the process tree and its entry information
 func (hm *HostManager) OnProcessEvent(event *SysmonEvent) {
 	host := hm.GetOrCreateHost(event)
+	processId := event.get("ProcessId")
+	processGuid := event.get("ProcessGuid")
+
 	switch event.EventID {
 	case EProcessCreate:
-		log.Printf("new process (%s): %s\n", event.EventData["ProcessId"], event.EventData["Image"])
-		log.Printf("parent process (%s): %s\n\n", event.EventData["ParentProcessId"], event.EventData["ParentImage"])
-
 		// for some reasons (like filtering), it's possible for parent processes not in processList yet
-		ppGuid := event.EventData["ParentProcessGuid"]
+		ppGuid := event.get("ParentProcessGuid")
 		parent := host.GetProcess(ppGuid)
 		if parent == nil {
-			parent = host.AddProcess(ppGuid, event.EventData["ParentProcessId"], event.EventData["ParentImage"], event.EventData["ParentCommandLine"])
+			parent = host.AddProcess(ppGuid, event.get("ParentProcessId"), event.get("ParentImage"), event.get("ParentCommandLine"))
 		}
-		process := host.AddProcess(event.EventData["ProcessGuid"], event.EventData["ProcessId"], event.EventData["Image"], event.EventData["CommandLine"])
-		createdAt, _ := time.Parse(TimeFormat, event.EventData["UtcTime"])
-		process.CreatedAt = &createdAt
-		process.State = PSRunning
-		process.OriginalFileName = event.EventData["OriginalFileName"]
-		process.CurrentDirectory = event.EventData["CurrentDirectory"]
-		process.IntegrityLevel = event.EventData["IntegrityLevel"]
-		process.Hashes = StringToMap(event.EventData["Hashes"])
+		process := host.AddProcess(processGuid, processId, event.get("Image"), event.get("CommandLine"))
+		process.CreatedAt = event.timestamp()
+		process.OriginalFileName = event.get("OriginalFileName")
+		process.CurrentDirectory = event.get("CurrentDirectory")
+		process.IntegrityLevel = event.get("IntegrityLevel")
+		process.Hashes = StringToMap(event.get("Hashes"))
 
-		process.FileVersion = event.EventData["FileVersion"]
-		process.Description = event.EventData["Description"]
-		process.Product = event.EventData["Product"]
-		process.Company = event.EventData["Company"]
+		process.FileVersion = event.get("FileVersion")
+		process.Description = event.get("Description")
+		process.Product = event.get("Product")
+		process.Company = event.get("Company")
 
 		process.Parent = parent
 		parent.AddChildProc(process)
 
-		if process.ProcessId == 8160 {
-			hm.DumpProcess("{5770385f-c22a-43e0-bf4c-06f5698ffbd9}", "{1db83021-91f2-5ee2-4c01-000000000d00}")
-		}
 	case EProcessTerminate:
-		if process := host.GetProcess(event.EventData["ProcessGuid"]); process != nil {
+		if process := host.GetProcess(processGuid); process != nil {
 			process.State = PSStopped
-			terminatedAt, _ := time.Parse(TimeFormat, event.EventData["UtcTime"])
-			process.TerminatedAt = &terminatedAt
+			process.TerminatedAt = event.timestamp()
 		}
 	default:
 		var process *Process
-		if process = host.GetProcess(event.EventData["ProcessGuid"]); process == nil {
-			process = host.AddProcess(event.EventData["ProcessGuid"], event.EventData["ProcessId"], event.EventData["Image"], "")
+		if process = host.GetProcess(processGuid); process == nil {
+			process = host.AddProcess(processGuid, processId, event.get("Image"), "")
 		}
 	}
 }

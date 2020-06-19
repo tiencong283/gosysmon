@@ -20,12 +20,14 @@
     <EventFiltering>
         <RuleGroup name="technique_id=T1053" groupRelation="and">
             <FileCreate onmatch="include">
+
                 <Image condition="image">C:\Windows\system32\svchost.exe</Image>
                 <Rule groupRelation="or">
-                    <TargetFilename condition="begin with">C:\Windows\Tasks</TargetFilename>
-                    <TargetFilename condition="begin with">C:\Windows\System32\Tasks</TargetFilename>
-                    <TargetFilename condition="begin with">C:\Windows\SysWOW64\Tasks</TargetFilename>
+                    <TargetFilename condition="directory">C:\Windows\Tasks</TargetFilename>
+                    <TargetFilename condition="directory">C:\Windows\System32\Tasks</TargetFilename>
+                    <TargetFilename condition="directory">C:\Windows\SysWOW64\Tasks</TargetFilename>
                 </Rule>
+
             </FileCreate>
         </RuleGroup>
     </EventFiltering>
