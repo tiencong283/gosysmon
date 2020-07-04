@@ -1,3 +1,13 @@
 kafka:
   brokers: localhost:9092
   topic: winsysmon
+
+# https://jdbc.postgresql.org/documentation/80/connect.html
+postgresql:
+  host: localhost
+  port: 5432
+  database: gosysmon
+  user: tiencong283
+  password: '@C0n9ht4'
+
+save-on-exit: false

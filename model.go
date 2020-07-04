@@ -19,13 +19,15 @@ type ListHead struct {
 
 // Process is an process/task representation
 type Process struct {
+	ProcessGuid string `json:"-"`
 	// process creation and termination time
-	CreatedAt, TerminatedAt *time.Time
+	CreatedAt    *time.Time `json:"-"`
+	TerminatedAt *time.Time `json:"-"`
 	// process state
-	State int
+	State int `json:"-"`
 	// process info
-	ProcessId        int
-	Image            string
+	ProcessId        int    `json:"-"`
+	Image            string `json:"-"`
 	OriginalFileName string
 	CommandLine      string
 	CurrentDirectory string
@@ -34,11 +36,11 @@ type Process struct {
 	// product information
 	FileVersion, Description, Product, Company string
 	// relationship
-	Parent   *Process
+	Parent   *Process `json:"-"`
 	Children ListHead `json:"-"`
 	Sibling  ListHead `json:"-"`
 
-	Alerts []*RContext
+	Alerts []*RContext `json:"-"`
 }
 
 // client representation
@@ -85,6 +87,7 @@ func (host *Host) GetProcess(pGuid string) *Process {
 func (host *Host) AddProcess(pGuid, pid, image, cmd string) *Process {
 	processId, _ := strconv.Atoi(pid)
 	proc := &Process{
+		ProcessGuid: pGuid,
 		State:       PSRunning,
 		ProcessId:   processId,
 		Image:       image,
@@ -105,41 +108,55 @@ func (host *Host) GetNumberOfProcesses() int {
 // HostManager manages sensor clients, the key is ProviderGuid which is the identity of the application or service (Sysmon) that logged the record
 // so it can be used relatively to represent a computer
 type HostManager struct {
+	State   chan int // simulate ON/OFF state
 	Hosts   map[string]*Host
 	EventCh chan *SysmonEvent
 	AlertCh chan *RContext
 	Alerts  []*RContext
 	logger  *log.Entry
+	DBConn  *DBConn
 }
 
 // NewHostManager returns new instance of HostManager
-func NewHostManager(AlertCh chan *RContext) *HostManager {
+func NewHostManager(alertCh chan *RContext, dbConn *DBConn) *HostManager {
 	return &HostManager{
+		State:   make(chan int),
 		Hosts:   make(map[string]*Host),
 		EventCh: make(chan *SysmonEvent, EventChBufSize),
-		AlertCh: AlertCh,
+		AlertCh: alertCh,
 		Alerts:  make([]*RContext, 0, AlertChBufSize*10),
 		logger:  log.WithField("section", "HostManager"),
+		DBConn:  dbConn,
 	}
 }
 
 // Start is the thread entry point
 func (hm *HostManager) Start() {
-	for {
+	eventChClosed := false
+	alertChClosed := false
+	for !eventChClosed || !alertChClosed {
 		select {
-		case event := <-hm.EventCh:
+		case event, ok := <-hm.EventCh:
+			if !ok {
+				eventChClosed = true
+				continue
+			}
 			if event.isProcessEvent() {
 				hm.OnProcessEvent(event)
 			}
-		case alert := <-hm.AlertCh:
+		case alert, ok := <-hm.AlertCh:
+			if !ok {
+				alertChClosed = true
+				continue
+			}
 			hm.OnAlert(alert)
 		}
 	}
+	hm.State <- 0 // OFF
 }
 
 // OnAlert updates the alert into its process
 func (hm *HostManager) OnAlert(alert *RContext) {
-	log.Debug(ToJson(alert))
 	host := hm.GetHost(alert.ProviderGUID)
 	if host == nil {
 		hm.AlertCh <- alert
@@ -150,6 +167,7 @@ func (hm *HostManager) OnAlert(alert *RContext) {
 			return
 		}
 		proc.Alerts = append(proc.Alerts, alert)
+		log.Debug(ToJson(alert))
 	}
 }
 
@@ -166,6 +184,7 @@ func (hm *HostManager) OnProcessEvent(event *SysmonEvent) {
 		parent := host.GetProcess(ppGuid)
 		if parent == nil {
 			parent = host.AddProcess(ppGuid, event.get("ParentProcessId"), event.get("ParentImage"), event.get("ParentCommandLine"))
+			_ = hm.DBConn.SaveProc(host, parent)
 		}
 		process := host.AddProcess(processGuid, processId, event.get("Image"), event.get("CommandLine"))
 		process.CreatedAt = event.timestamp()
@@ -181,16 +200,19 @@ func (hm *HostManager) OnProcessEvent(event *SysmonEvent) {
 
 		process.Parent = parent
 		parent.AddChildProc(process)
+		_ = hm.DBConn.SaveProc(host, process)
 
 	case EProcessTerminate:
 		if process := host.GetProcess(processGuid); process != nil {
 			process.State = PSStopped
 			process.TerminatedAt = event.timestamp()
+			_ = hm.DBConn.UpdateProcTerm(host, process)
 		}
 	default:
 		var process *Process
 		if process = host.GetProcess(processGuid); process == nil {
 			process = host.AddProcess(processGuid, processId, event.get("Image"), "")
+			_ = hm.DBConn.SaveProc(host, process)
 		}
 	}
 }
@@ -198,6 +220,7 @@ func (hm *HostManager) OnProcessEvent(event *SysmonEvent) {
 // AddHost adds new host
 func (hm *HostManager) AddHost(providerGuid string, host *Host) {
 	hm.Hosts[providerGuid] = host
+	hm.DBConn.SaveHost(host)
 }
 
 // GetHost return the host with corresponding providerGuid

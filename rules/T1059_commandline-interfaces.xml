@@ -1,22 +1,20 @@
 <Sysmon schemaversion="4.30">
     <!--
         References:
-            https://attack.mitre.org/techniques/T1085/
-            https://www.walkernews.net/2007/06/06/quick-start-to-rundll32-syntax-and-example/
-            https://web.archive.org/web/20150202103048/http://support.microsoft.com/kb/164787
+            https://attack.mitre.org/techniques/T1059/
         List:
-            monitor the execution of rundll32.exe
+            monitor the execution of cmd.exe
         Todo:
-            parsing its command arguments to differentiate with normal activities
+            parsing its command arguments to provide context of what it will execute
         Testing:
-            https://github.com/redcanaryco/atomic-red-team/blob/t1085-vbscript/atomics/T1085/T1085.md
+            https://github.com/redcanaryco/atomic-red-team/blob/t1085-vbscript/atomics/T1059/T1059.md
     -->
 
     <EventFiltering>
         <RuleGroup groupRelation="or">
             <ProcessCreate onmatch="include">
-                <Rule name="technique_id=T1085" groupRelation="or">
-                    <Image condition="image">C:\Windows\System32\rundll32.exe</Image>
+                <Rule name="technique_id=T1059" groupRelation="or">
+                    <Image condition="image">C:\Windows\System32\cmd.exe</Image>
                 </Rule>
             </ProcessCreate>
         </RuleGroup>

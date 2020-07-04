@@ -67,12 +67,14 @@ type MitreATTCKFilterer interface {
 	IsSupported(event *SysmonEvent) bool
 	Init() error
 	EventCh() chan *SysmonEvent
+	StateCh() chan int
 	SetAlertCh(alertCh chan *RContext)
 	Start()
 }
 
 // CommonFilterer is the common properties of MitreATTCKFilterers
 type CommonFilterer struct {
+	State   chan int
 	Name    string
 	eventCh chan *SysmonEvent
 	AlertCh chan *RContext
@@ -81,6 +83,7 @@ type CommonFilterer struct {
 
 func NewCommonFilterer(name string) CommonFilterer {
 	return CommonFilterer{
+		State:   make(chan int),
 		Name:    name,
 		eventCh: make(chan *SysmonEvent, EventChBufSize),
 		logger:  log.WithField("FilterId", name),

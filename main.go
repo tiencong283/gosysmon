@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "github.com/jackc/pgx/v4/stdlib"
 	_ "github.com/segmentio/kafka-go/gzip"
 	log "github.com/sirupsen/logrus"
 )

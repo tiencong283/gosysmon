@@ -156,6 +156,10 @@ func (mf *RuleFilter) EventCh() chan *SysmonEvent {
 	return mf.eventCh
 }
 
+func (mf *RuleFilter) StateCh() chan int {
+	return mf.State
+}
+
 func (mf *RuleFilter) SetAlertCh(alertCh chan *RContext) {
 	mf.AlertCh = alertCh
 }
@@ -170,6 +174,7 @@ func (mf *RuleFilter) Start() {
 		alert.MergeContext(event.EventData)
 		mf.AlertCh <- alert
 	}
+	mf.State <- 1
 }
 
 // LoadFromDir updates rules from ruleDirPath directory
@@ -428,7 +433,7 @@ func (mf *RuleFilter) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error
 				parent = tokStk[len(tokStk)-2] // upwards one level
 			}
 			if !mf.SchemaDef.ValidProps[parent].Has(elementName) {
-				return fmt.Errorf("element %s is unexpected in parent element %s", elementName, lastElementName)
+				return fmt.Errorf("element %s is unexpected in parent element %s", elementName, parent)
 			}
 			tokStk = append(tokStk, elementName)
 

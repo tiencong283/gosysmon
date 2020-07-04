@@ -1,34 +1,24 @@
 <Sysmon schemaversion="4.30">
     <!--
         References:
-            https://attack.mitre.org/techniques/T1053/
+            https://attack.mitre.org/techniques/T1085/
+            https://www.walkernews.net/2007/06/06/quick-start-to-rundll32-syntax-and-example/
+            https://web.archive.org/web/20150202103048/http://support.microsoft.com/kb/164787
         List:
-            Common utilities:  at, schtasks
-            When creating a new local scheduled task by schtasks, some events will happen:
-                svchost.exe will create registry keys for the scheduled task in:
-                    HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\
-                svchost.exe will create a config file for the scheduled task in one of the following (depending the environment):
-                    C:\Windows\System32\Tasks\<task-name>
-                    C:\Windows\Tasks\<task-name>
-                    C:\Windows\SysWOW64\Tasks\<task-name>
+            monitor the execution of rundll32.exe
         Todo:
-            Dealing with at utility and some differences on older versions
+            parsing its command arguments to differentiate with normal activities
         Testing:
-            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1053/T1053.md
+            https://github.com/redcanaryco/atomic-red-team/blob/t1085-vbscript/atomics/T1085/T1085.md
     -->
 
     <EventFiltering>
-        <RuleGroup name="technique_id=T1053" groupRelation="and">
-            <FileCreate onmatch="include">
-
-                <Image condition="image">C:\Windows\system32\svchost.exe</Image>
-                <Rule groupRelation="or">
-                    <TargetFilename condition="directory">C:\Windows\Tasks</TargetFilename>
-                    <TargetFilename condition="directory">C:\Windows\System32\Tasks</TargetFilename>
-                    <TargetFilename condition="directory">C:\Windows\SysWOW64\Tasks</TargetFilename>
+        <RuleGroup groupRelation="or">
+            <ProcessCreate onmatch="include">
+                <Rule name="technique_id=T1085" groupRelation="or">
+                    <Image condition="image">C:\Windows\System32\rundll32.exe</Image>
                 </Rule>
-
-            </FileCreate>
+            </ProcessCreate>
         </RuleGroup>
     </EventFiltering>
 </Sysmon>

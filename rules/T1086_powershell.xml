@@ -1,20 +1,22 @@
 <Sysmon schemaversion="4.30">
     <!--
         References:
-            https://attack.mitre.org/techniques/T1059/
+            https://attack.mitre.org/techniques/T1086/
         List:
-            monitor the execution of cmd.exe
+            monitor the execution of powershell.exe
         Todo:
             parsing its command arguments to provide context of what it will execute
+            powershell commands/scripts can also be executed without directly invoking the powershell.exe binary
+            try powershell logging
         Testing:
-            https://github.com/redcanaryco/atomic-red-team/blob/t1085-vbscript/atomics/T1059/T1059.md
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1059.001/T1059.001.md (Test #1)
     -->
 
     <EventFiltering>
         <RuleGroup groupRelation="or">
             <ProcessCreate onmatch="include">
-                <Rule name="technique_id=T1059" groupRelation="or">
-                    <Image condition="image">C:\Windows\System32\cmd.exe</Image>
+                <Rule name="technique_id=T1086" groupRelation="or">
+                    <Image condition="image">C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Image>
                 </Rule>
             </ProcessCreate>
         </RuleGroup>
