@@ -1,14 +1,16 @@
 -- Host table
 CREATE TABLE Hosts
 (
+    Id        SERIAL,
     Name      VARCHAR(64) PRIMARY KEY,
     FirstSeen Timestamp NOT NULL,
     Active    BOOL DEFAULT TRUE
-)
+);
 
 -- Process table
 CREATE TABLE Processes
 (
+    Id           SERIAL,
     HostName     VARCHAR(64) REFERENCES Hosts (Name),
     ProcessGuid  VARCHAR(64) PRIMARY KEY,
     CreatedAt    Timestamp NOT NULL,
@@ -32,7 +34,7 @@ CREATE TABLE Processes
 --     Company           TEXT,
 
     PProcessGuid VARCHAR(64)
-)
+);
 
 -- KafkaOffset table
 CREATE TABLE KafkaOffsets
@@ -40,4 +42,4 @@ CREATE TABLE KafkaOffsets
     Id          SERIAL,
     KafkaOffset BIGINT NOT NULL,
     ModTime     TIMESTAMP DEFAULT current_timestamp
-)
+);

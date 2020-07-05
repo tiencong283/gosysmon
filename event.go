@@ -1,6 +1,9 @@
 package main
 
-import "time"
+import (
+	"strconv"
+	"time"
+)
 
 /*
 	These event structures are quickly derived from json using https://github.com/ChimeraCoder/gojson
@@ -77,6 +80,18 @@ func (event *SysmonEvent) isSysmonEvent() bool {
 
 func (event *SysmonEvent) get(name string) string {
 	return event.EventData[name]
+}
+
+func (event *SysmonEvent) getBool(name string) bool {
+	v, err := strconv.ParseBool(event.get(name))
+	if err != nil {
+		return false
+	}
+	return v
+}
+
+func (event *SysmonEvent) getInt(name string) (int, error) {
+	return strconv.Atoi(event.get(name))
 }
 
 func (event *SysmonEvent) set(name, value string) {

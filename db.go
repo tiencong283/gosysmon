@@ -125,3 +125,4 @@ func (conn *DBConn) SaveKafkaOffset(offset int64) error {
 	}
 	return nil
 }
+

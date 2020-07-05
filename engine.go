@@ -110,7 +110,11 @@ func NewEngine(configFilePath string) (*Engine, error) {
 	}
 
 	engine.ExtractorEngine.InitDefault()
+	// register Filters
 	if err := engine.FilterEngine.Register(NewRuleFilter()); err != nil {
+		return nil, err
+	}
+	if err := engine.FilterEngine.Register(newIOCFilter()); err != nil {
 		return nil, err
 	}
 	engine.TermChan = make(chan os.Signal, 64)

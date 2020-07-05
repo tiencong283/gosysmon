@@ -1,6 +1,10 @@
 package main
 
-import "strings"
+import (
+	"log"
+	"net"
+	"strings"
+)
 
 type StringSet map[string]struct{}
 
@@ -159,4 +163,29 @@ func GetImageName(path string) string {
 func GetDir(path string) string {
 	dir := path[:len(path)-len(GetImageName(path))]
 	return strings.TrimRight(dir, "\\")
+}
+
+var privateIpNets = make([]*net.IPNet, 0)
+var privateCIDRs = [...]string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}
+
+func IsPublicGlobalUnicast(ipAddr net.IP) bool {
+	if !ipAddr.IsGlobalUnicast() {
+		return false
+	}
+	for _, ipNet := range privateIpNets {
+		if ipNet.Contains(ipAddr) {
+			return false
+		}
+	}
+	return true
+}
+
+func init() {
+	for _, privateCIDR := range privateCIDRs {
+		_, ipNet, err := net.ParseCIDR(privateCIDR)
+		if err != nil {
+			log.Fatal(err)
+		}
+		privateIpNets = append(privateIpNets, ipNet)
+	}
 }
