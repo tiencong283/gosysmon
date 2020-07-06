@@ -60,7 +60,6 @@ type Engine struct {
 	HostManager     *HostManager
 	FilterEngine    *FilterEngine
 	ExtractorEngine *ExtractorEngine
-	DBConn          *DBConn
 	TermChan        chan os.Signal
 }
 
@@ -82,21 +81,23 @@ func NewEngine(configFilePath string) (*Engine, error) {
 	if err := engine.Config.InitFrom(configFilePath); err != nil {
 		return nil, err
 	}
-	dbConn, err := NewDBConn("pgx", engine.Config.PgConUrl)
-	if err != nil {
+	// databases
+	if err := InitPg("pgx", engine.Config.PgConUrl); err != nil {
 		return nil, err
 	}
-	engine.DBConn = dbConn
+	if err := InitRedis(engine.Config.RedisConUrl); err != nil {
+		return nil, err
+	}
 
 	// pipeline
 	AlertCh := make(chan *RContext, AlertChBufSize)
-	engine.HostManager = NewHostManager(AlertCh, dbConn)
+	engine.HostManager = NewHostManager(AlertCh)
 	engine.FilterEngine = NewFilterEngine(AlertCh)
 	engine.ExtractorEngine = NewExtractorEngine()
 
 	var lastOffset int64
 	if engine.Config.SaveOnExit { // not parsing from the start
-		lastOffset = engine.DBConn.GetPreKafkaOffset()
+		lastOffset = PgConn.GetPreKafkaOffset()
 	}
 	log.Infoln("offset ", lastOffset)
 	engine.Reader = kafka.NewReader(kafka.ReaderConfig{
@@ -125,7 +126,7 @@ func NewEngine(configFilePath string) (*Engine, error) {
 // Start starts receiving messages and distribute to workers
 func (engine *Engine) Start() error {
 	if !engine.Config.SaveOnExit { // parsing from start
-		if err := engine.DBConn.DeleteAll(); err != nil { // clean all previous db
+		if err := PgConn.DeleteAll(); err != nil { // clean all previous db
 			return err
 		}
 	}
@@ -163,7 +164,7 @@ func (engine *Engine) Start() error {
 		msg = new(Message)
 	}
 	if engine.Config.SaveOnExit {
-		_ = engine.DBConn.SaveKafkaOffset(lastOffset)
+		_ = PgConn.SaveKafkaOffset(lastOffset)
 	}
 	close(engine.HostManager.EventCh)
 	engine.FilterEngine.CloseAll()
@@ -176,5 +177,6 @@ func (engine *Engine) Start() error {
 // Close cleans up any resources
 func (engine *Engine) Close() {
 	_ = engine.Reader.Close()
-	engine.DBConn.Close()
+	PgConn.Close()
+	_ = RedisConn.Close()
 }

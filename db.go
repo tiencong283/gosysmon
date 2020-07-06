@@ -2,25 +2,42 @@ package main
 
 import (
 	"database/sql"
+	"github.com/gomodule/redigo/redis"
 )
 
+// redis
+var RedisConn redis.Conn
+
+// postgresql
 type DBConn struct {
 	db           *sql.DB
 	preparedSmts map[string]*sql.Stmt
 }
 
-func NewDBConn(driverName, connUrl string) (*DBConn, error) {
+var PgConn *DBConn
+
+func InitRedis(redisConUrl string) error {
+	var err error
+	RedisConn, err = redis.DialURL(redisConUrl)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func InitPg(driverName, connUrl string) error {
 	db, err := sql.Open(driverName, connUrl)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if err := db.Ping(); err != nil {
-		return nil, err
+		return err
 	}
-	return &DBConn{
+	PgConn = &DBConn{
 		db:           db,
 		preparedSmts: make(map[string]*sql.Stmt),
-	}, nil
+	}
+	return nil
 }
 
 func (conn *DBConn) Close() {
@@ -125,4 +142,3 @@ func (conn *DBConn) SaveKafkaOffset(offset int64) error {
 	}
 	return nil
 }
-

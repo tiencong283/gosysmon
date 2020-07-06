@@ -8,6 +8,12 @@ postgresql:
   port: 5432
   database: gosysmon
   user: tiencong283
-  password: '@C0n9ht4'
+  password: gosysmon
+
+redis:
+  host: localhost
+  port: 6379
+  user: default
+  password: gosysmon
 
 save-on-exit: false

@@ -114,11 +114,10 @@ type HostManager struct {
 	AlertCh chan *RContext
 	Alerts  []*RContext
 	logger  *log.Entry
-	DBConn  *DBConn
 }
 
 // NewHostManager returns new instance of HostManager
-func NewHostManager(alertCh chan *RContext, dbConn *DBConn) *HostManager {
+func NewHostManager(alertCh chan *RContext) *HostManager {
 	return &HostManager{
 		State:   make(chan int),
 		Hosts:   make(map[string]*Host),
@@ -126,7 +125,6 @@ func NewHostManager(alertCh chan *RContext, dbConn *DBConn) *HostManager {
 		AlertCh: alertCh,
 		Alerts:  make([]*RContext, 0, AlertChBufSize*10),
 		logger:  log.WithField("section", "HostManager"),
-		DBConn:  dbConn,
 	}
 }
 
@@ -184,7 +182,7 @@ func (hm *HostManager) OnProcessEvent(event *SysmonEvent) {
 		parent := host.GetProcess(ppGuid)
 		if parent == nil {
 			parent = host.AddProcess(ppGuid, event.get("ParentProcessId"), event.get("ParentImage"), event.get("ParentCommandLine"))
-			_ = hm.DBConn.SaveProc(host, parent)
+			_ = PgConn.SaveProc(host, parent)
 		}
 		process := host.AddProcess(processGuid, processId, event.get("Image"), event.get("CommandLine"))
 		process.CreatedAt = event.timestamp()
@@ -200,19 +198,19 @@ func (hm *HostManager) OnProcessEvent(event *SysmonEvent) {
 
 		process.Parent = parent
 		parent.AddChildProc(process)
-		_ = hm.DBConn.SaveProc(host, process)
+		_ = PgConn.SaveProc(host, process)
 
 	case EProcessTerminate:
 		if process := host.GetProcess(processGuid); process != nil {
 			process.State = PSStopped
 			process.TerminatedAt = event.timestamp()
-			_ = hm.DBConn.UpdateProcTerm(host, process)
+			_ = PgConn.UpdateProcTerm(host, process)
 		}
 	default:
 		var process *Process
 		if process = host.GetProcess(processGuid); process == nil {
 			process = host.AddProcess(processGuid, processId, event.get("Image"), "")
-			_ = hm.DBConn.SaveProc(host, process)
+			_ = PgConn.SaveProc(host, process)
 		}
 	}
 }
@@ -220,7 +218,7 @@ func (hm *HostManager) OnProcessEvent(event *SysmonEvent) {
 // AddHost adds new host
 func (hm *HostManager) AddHost(providerGuid string, host *Host) {
 	hm.Hosts[providerGuid] = host
-	hm.DBConn.SaveHost(host)
+	_ = PgConn.SaveHost(host)
 }
 
 // GetHost return the host with corresponding providerGuid

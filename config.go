@@ -17,12 +17,19 @@ const (
 	DefKafkaTopic   = "winsysmon"
 
 	// default Postgresql connection
-	DefPgHost       = "localost"
-	DefPgPort       = 5432
-	DefPgDatabase   = "gosysmon"
-	DefPgUser       = "tiencong283"
-	DefPgPassword   = "@C0n9ht4"
-	PgConnUrlFormat = "host=%s port=%d database=%s user=%s password=%s" // DSN string
+	DefPgHost      = "localost"
+	DefPgPort      = 5432
+	DefPgDatabase  = "gosysmon"
+	DefPgUser      = "tiencong283"
+	DefPgPassword  = "gosysmon"
+	PgConUrlFormat = "host=%s port=%d database=%s user=%s password=%s" // DSN string
+
+	// default Redis
+	DefRHost          = "localhost"
+	DefRPort          = 6379
+	DefRUsername      = "default"
+	DefRPassword      = "gosysmon"
+	RedisConUrlFormat = "redis://%s:%s@%s:%d" // redis://user:secret@localhost:6379, https://www.iana.org/assignments/uri-schemes/prov/redis
 
 	// default app behavior
 	DefSaveOnExit = true
@@ -35,6 +42,7 @@ type Config struct {
 	KafkaBrokers string
 	KafkaTopic   string
 	PgConUrl     string
+	RedisConUrl  string
 	SaveOnExit   bool
 }
 
@@ -51,6 +59,10 @@ func (config *Config) InitFrom(configFilePath string) error {
 	viper.SetDefault("postgresql.database", DefPgDatabase)
 	viper.SetDefault("postgresql.user", DefPgUser)
 	viper.SetDefault("postgresql.password", DefPgPassword)
+	viper.SetDefault("redis.host", DefPgHost)
+	viper.SetDefault("redis.port", DefPgPort)
+	viper.SetDefault("redis.user", DefPgUser)
+	viper.SetDefault("redis.password", DefPgPassword)
 	viper.SetDefault("save-on-exit", DefSaveOnExit)
 
 	if err := viper.ReadInConfig(); err != nil {
@@ -62,15 +74,15 @@ func (config *Config) InitFrom(configFilePath string) error {
 	}
 	config.KafkaBrokers = viper.GetString("kafka.brokers")
 	config.KafkaTopic = viper.GetString("kafka.topic")
+
+	config.PgConUrl = fmt.Sprintf(PgConUrlFormat, viper.GetString("postgresql.host"), viper.GetInt("postgresql.port"),
+		viper.GetString("postgresql.database"), viper.GetString("postgresql.user"),
+		viper.GetString("postgresql.password"))
+
+	config.RedisConUrl = fmt.Sprintf(RedisConUrlFormat, viper.GetString("redis.user"), viper.GetString("redis.password"),
+		viper.GetString("redis.host"), viper.GetInt("redis.port"))
+
 	config.SaveOnExit = viper.GetBool("save-on-exit")
-
-	host := viper.GetString("postgresql.host")
-	port := viper.GetInt("postgresql.port")
-	database := viper.GetString("postgresql.database")
-	user := viper.GetString("postgresql.user")
-	password := viper.GetString("postgresql.password")
-	config.PgConUrl = fmt.Sprintf(PgConnUrlFormat, host, port, database, user, password)
-
 	return nil
 }
 

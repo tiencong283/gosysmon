@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/gomodule/redigo/redis"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net"
@@ -80,7 +81,25 @@ func (filter *IOCFilter) SetAlertCh(alertCh chan *RContext) {
 	filter.AlertCh = alertCh
 }
 
-func (filter *IOCFilter) CheckIOC(indicator string, iocType int) bool {
+func (filter *IOCFilter) CheckIOC(indicator string, iocType int) (bool, error) {
+	// check in cache first
+	var key string
+	switch iocType {
+	case IOCHash:
+		key = "ioc:hash:" + indicator
+	case IOCDomain:
+		key = "ioc:domain:" + indicator
+	case IOCIp:
+		key = "ioc:ip_address:" + indicator
+	}
+	ok, err := redis.Bool(RedisConn.Do("GET", key))
+	if err != redis.ErrNil {
+		if err != nil {
+			return false, err
+		}
+		return ok, nil
+	}
+
 	// build the endpoint url
 	urlFormat := "http://www.virustotal.com/api/v3/%s/%s"
 	var url string
@@ -91,36 +110,36 @@ func (filter *IOCFilter) CheckIOC(indicator string, iocType int) bool {
 		url = fmt.Sprintf(urlFormat, "domains", indicator)
 	case IOCIp:
 		url = fmt.Sprintf(urlFormat, "ip_addresses", indicator)
-	default:
-		return false
 	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Fatal(err)
+		return false, err
 	}
 	req.Header.Add("x-apikey", filter.VirustotalAPI)
+
 	// querying
 	resp, err := filter.Client.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		return false, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode/100 == 2 {
 		bytes, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			log.Fatal(err)
+			return false, err
 		}
 		analysis := new(Analysis)
 		if err := json.Unmarshal(bytes, analysis); err != nil {
-			log.Fatal(err)
+			return false, nil
 		}
-		if analysis.Data.Attributes.LastAnalysisStats.Malicious > 0 {
-			return true
+		ans := analysis.Data.Attributes.LastAnalysisStats.Malicious > 0
+		if err = RedisConn.Send("SET", key, ans); err != nil { // cached in redis
+			return false, err
 		}
-	} else {
-		log.Println(resp.Status, url)
+		_ = RedisConn.Flush()
+		return ans, nil
 	}
-	return false
+	return false, fmt.Errorf("virustotal response code %d", resp.StatusCode)
 }
 
 func (filter *IOCFilter) Start() {
@@ -154,12 +173,14 @@ func (filter *IOCFilter) Start() {
 			}
 			indicator, iocType = targetIP.String(), IOCIp
 		}
-		if malicious := filter.CheckIOC(indicator, iocType); malicious {
+		malicious, err := filter.CheckIOC(indicator, iocType)
+		if err != nil {
+			log.Warnf("cannot check %s: %v", indicator, err)
+			continue
+		}
+		if malicious {
 			log.Printf("malicious '%s'\n", indicator)
-		} else {
-			log.Printf("not malicious '%s'\n", indicator)
 		}
 	}
-
 	filter.State <- 1
 }
