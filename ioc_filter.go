@@ -141,12 +141,14 @@ func (filter *IOCFilter) CheckIOC(indicator string, iocType int) (bool, error) {
 		if err := json.Unmarshal(bytes, analysis); err != nil {
 			return false, nil
 		}
-		ans := analysis.Data.Attributes.LastAnalysisStats.Malicious > 0
+		ans := analysis.Data.Attributes.LastAnalysisStats.Malicious > 1
 		if err = RedisConn.Send("SET", key, ans); err != nil { // cached in redis
 			return false, err
 		}
 		_ = RedisConn.Flush()
 		return ans, nil
+	} else if resp.StatusCode == 404 {
+		return false, nil
 	}
 	return false, fmt.Errorf("virustotal response code %d", resp.StatusCode)
 }
