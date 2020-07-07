@@ -1,19 +1,23 @@
+# the address of Sysmon logs
 kafka:
   brokers: localhost:9092
   topic: winsysmon
 
 # https://jdbc.postgresql.org/documentation/80/connect.html
+# postgresql used for persist process related information
 postgresql:
   host: localhost
   port: 5432
   database: gosysmon
   user: tiencong283
   password: gosysmon
-
+# redis used as a cached for IOC checking
 redis:
   host: localhost
   port: 6379
   user: default
   password: gosysmon
 
-save-on-exit: false
+virustotal-api: "e96afa0609dbc5a5111cee2039a203c14587e20c66360397280916edd6fc30ce"
+# if enable it will parse logs from last offset instead of from the start
+save-on-exit: yes

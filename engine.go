@@ -2,20 +2,18 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 )
 
 // FilterEngine is the detector engine
 type FilterEngine struct {
 	Filters []MitreATTCKFilterer
-	AlertCh chan *RContext
+	AlertCh chan interface{}
 }
 
 // Register add a new Filter
@@ -63,7 +61,7 @@ type Engine struct {
 	TermChan        chan os.Signal
 }
 
-func NewFilterEngine(alertCh chan *RContext) *FilterEngine {
+func NewFilterEngine(alertCh chan interface{}) *FilterEngine {
 	return &FilterEngine{
 		Filters: make([]MitreATTCKFilterer, 0),
 		AlertCh: alertCh,
@@ -73,33 +71,28 @@ func NewFilterEngine(alertCh chan *RContext) *FilterEngine {
 // NewEngine returns a new NewEngine with configFilePath as the configuration file
 func NewEngine(configFilePath string) (*Engine, error) {
 	engine := new(Engine)
-
-	configFilePath = strings.TrimSpace(configFilePath)
-	if len(configFilePath) == 0 {
-		return nil, errors.New("invalid parameters")
-	}
+	// parsing configuration
 	if err := engine.Config.InitFrom(configFilePath); err != nil {
 		return nil, err
 	}
-	// databases
+	// database
 	if err := InitPg("pgx", engine.Config.PgConUrl); err != nil {
 		return nil, err
 	}
 	if err := InitRedis(engine.Config.RedisConUrl); err != nil {
 		return nil, err
 	}
-
 	// pipeline
-	AlertCh := make(chan *RContext, AlertChBufSize)
+	AlertCh := make(chan interface{}, AlertChBufSize)
 	engine.HostManager = NewHostManager(AlertCh)
 	engine.FilterEngine = NewFilterEngine(AlertCh)
 	engine.ExtractorEngine = NewExtractorEngine()
-
+	// kafka
 	var lastOffset int64
 	if engine.Config.SaveOnExit { // not parsing from the start
 		lastOffset = PgConn.GetPreKafkaOffset()
 	}
-	log.Infoln("offset ", lastOffset)
+	log.Infof("parsing logs from offset %d\n", lastOffset)
 	engine.Reader = kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  []string{engine.Config.KafkaBrokers},
 		Topic:    engine.Config.KafkaTopic,
@@ -109,7 +102,7 @@ func NewEngine(configFilePath string) (*Engine, error) {
 	if err := engine.Reader.SetOffset(lastOffset); err != nil {
 		return nil, err // todo: should reset to 0
 	}
-
+	// global transformation
 	engine.ExtractorEngine.InitDefault()
 	// register Filters
 	if err := engine.FilterEngine.Register(NewRuleFilter()); err != nil {
@@ -118,6 +111,7 @@ func NewEngine(configFilePath string) (*Engine, error) {
 	if err := engine.FilterEngine.Register(newIOCFilter()); err != nil {
 		return nil, err
 	}
+	// signal handling
 	engine.TermChan = make(chan os.Signal, 64)
 	signal.Notify(engine.TermChan, os.Interrupt, os.Kill, syscall.SIGTERM)
 	return engine, nil
@@ -125,8 +119,12 @@ func NewEngine(configFilePath string) (*Engine, error) {
 
 // Start starts receiving messages and distribute to workers
 func (engine *Engine) Start() error {
-	if !engine.Config.SaveOnExit { // parsing from start
+	if !engine.Config.SaveOnExit {
 		if err := PgConn.DeleteAll(); err != nil { // clean all previous db
+			return err
+		}
+	} else {
+		if err := engine.HostManager.LoadData(); err != nil {
 			return err
 		}
 	}
@@ -145,7 +143,8 @@ func (engine *Engine) Start() error {
 	}(engine.TermChan, cancel)
 
 	var msg = new(Message)
-	lastOffset := int64(0)
+	preOffset := engine.Reader.Offset()
+	lastOffset := preOffset
 	for {
 		rawMsg, err := engine.Reader.ReadMessage(ctx)
 		if err == context.Canceled {
@@ -163,8 +162,10 @@ func (engine *Engine) Start() error {
 		lastOffset = rawMsg.Offset
 		msg = new(Message)
 	}
-	if engine.Config.SaveOnExit {
-		_ = PgConn.SaveKafkaOffset(lastOffset)
+	if engine.Config.SaveOnExit && lastOffset > preOffset {
+		if err := PgConn.SaveKafkaOffset(lastOffset + 1); err != nil {
+			log.Warnf("cannot save kafka offset, %s", err)
+		}
 	}
 	close(engine.HostManager.EventCh)
 	engine.FilterEngine.CloseAll()

@@ -11,6 +11,72 @@ const (
 	AlertChBufSize = 1000
 )
 
+type ResultId struct {
+	ProviderGUID string `json:"-"`
+	ProcessGuid  string `json:"-"`
+}
+
+func NewResultId(event *SysmonEvent) ResultId {
+	return ResultId{
+		ProviderGUID: event.ProviderGUID,
+		ProcessGuid:  event.get("ProcessGuid"),
+	}
+}
+
+// MitreATTCKResult represents an alert/feature
+type MitreATTCKResult struct {
+	ResultId
+	IsAlert   bool
+	Context   map[string]string
+	Message   string
+	Technique *AttackPattern
+}
+
+func NewMitreATTCKResult(isAlert bool, techID, message string, event *SysmonEvent) *MitreATTCKResult {
+	return &MitreATTCKResult{
+		Context:   make(map[string]string),
+		Message:   message,
+		Technique: Techniques[techID],
+		ResultId:  NewResultId(event),
+		IsAlert:   isAlert,
+	}
+}
+
+func (r *MitreATTCKResult) MergeContext(m map[string]string) {
+	for k, v := range m {
+		r.Context[k] = v
+	}
+}
+
+// ModelFilter is the filter that builds models of detector for abnormal detection
+type MitreATTCKFilterer interface {
+	IsSupported(event *SysmonEvent) bool
+	Init() error
+	EventCh() chan *SysmonEvent
+	StateCh() chan int
+	SetAlertCh(alertCh chan interface{})
+	Start()
+}
+
+// CommonFilterer is the common properties of MitreATTCKFilterers
+type CommonFilterer struct {
+	State   chan int
+	Name    string
+	eventCh chan *SysmonEvent
+	AlertCh chan interface{}
+	logger  *log.Entry
+}
+
+func NewCommonFilterer(name string) CommonFilterer {
+	return CommonFilterer{
+		State:   make(chan int),
+		Name:    name,
+		eventCh: make(chan *SysmonEvent, EventChBufSize),
+		logger:  log.WithField("FilterId", name),
+	}
+}
+
+// working with ATT&CK https://github.com/mitre/cti
 type RawAttackPattern struct {
 	Type            string `json:"type"`
 	Name            string `json:"name"`
@@ -31,64 +97,6 @@ type AttackPattern struct {
 }
 
 var Techniques = make(map[string]*AttackPattern, 0)
-
-type RContextId struct {
-	ProviderGUID, ProcessGuid string
-}
-
-// RContext represents an alert
-type RContext struct {
-	RContextId
-	Context   map[string]string
-	Message   string
-	Technique *AttackPattern
-}
-
-func NewRContext(techID, message string, event *SysmonEvent) *RContext {
-	return &RContext{
-		Context:   make(map[string]string),
-		Message:   message,
-		Technique: Techniques[techID],
-		RContextId: RContextId{
-			ProviderGUID: event.ProviderGUID,
-			ProcessGuid:  event.get("ProcessGuid"),
-		},
-	}
-}
-
-func (r *RContext) MergeContext(m map[string]string) {
-	for k, v := range m {
-		r.Context[k] = v
-	}
-}
-
-// ModelFilter is the filter that builds models of detector for abnormal detection
-type MitreATTCKFilterer interface {
-	IsSupported(event *SysmonEvent) bool
-	Init() error
-	EventCh() chan *SysmonEvent
-	StateCh() chan int
-	SetAlertCh(alertCh chan *RContext)
-	Start()
-}
-
-// CommonFilterer is the common properties of MitreATTCKFilterers
-type CommonFilterer struct {
-	State   chan int
-	Name    string
-	eventCh chan *SysmonEvent
-	AlertCh chan *RContext
-	logger  *log.Entry
-}
-
-func NewCommonFilterer(name string) CommonFilterer {
-	return CommonFilterer{
-		State:   make(chan int),
-		Name:    name,
-		eventCh: make(chan *SysmonEvent, EventChBufSize),
-		logger:  log.WithField("FilterId", name),
-	}
-}
 
 func init() {
 	// initialize

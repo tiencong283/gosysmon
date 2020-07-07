@@ -4,11 +4,20 @@ import (
 	"fmt"
 	"github.com/gomodule/redigo/redis"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"strings"
 )
+
+type IOCResult struct {
+	ResultId
+	IOCType     int
+	Indicator   string
+	Message     string
+	ExternalUrl string
+}
 
 const (
 	IOCHash = iota
@@ -48,7 +57,7 @@ type IOCFilter struct {
 func newIOCFilter() *IOCFilter {
 	return &IOCFilter{
 		Client:         new(http.Client),
-		VirustotalAPI:  "e96afa0609dbc5a5111cee2039a203c14587e20c66360397280916edd6fc30ce",
+		VirustotalAPI:  viper.GetString("virustotal-api"),
 		CommonFilterer: NewCommonFilterer("IOC Filter"),
 	}
 }
@@ -77,7 +86,7 @@ func (filter *IOCFilter) StateCh() chan int {
 	return filter.State
 }
 
-func (filter *IOCFilter) SetAlertCh(alertCh chan *RContext) {
+func (filter *IOCFilter) SetAlertCh(alertCh chan interface{}) {
 	filter.AlertCh = alertCh
 }
 
@@ -155,8 +164,7 @@ func (filter *IOCFilter) Start() {
 			if event.EventID == EFileDelete && !event.getBool("IsExecutable") {
 				continue
 			}
-			hashes := StringToMap(event.get("Hashes"))
-			indicator, iocType = hashes["MD5"], IOCHash
+			indicator, iocType = GetKeyFrom(event.get("Hashes"), "MD5"), IOCHash
 		case EDnsQuery:
 			queryStatus, err := event.getInt("QueryStatus")
 			if err != nil || queryStatus != 0 {
@@ -179,7 +187,29 @@ func (filter *IOCFilter) Start() {
 			continue
 		}
 		if malicious {
-			log.Printf("malicious '%s'\n", indicator)
+			var msg, externalUrl string
+
+			switch iocType {
+			case IOCIp:
+				msg = fmt.Sprintf("An connection made to the server with malicious IP '%s'", indicator)
+				externalUrl = fmt.Sprintf("https://www.virustotal.com/gui/ip-address/%s/detection", indicator)
+			case IOCDomain:
+				msg = fmt.Sprintf("DNS query to malicious domain '%s'", indicator)
+				externalUrl = fmt.Sprintf("https://www.virustotal.com/gui/domain/%s/detection", indicator)
+			case IOCHash:
+				if event.EventID == EProcessCreate {
+					msg = fmt.Sprintf("Malicious process '%s' is executed", event.get("Image"))
+				}
+				externalUrl = fmt.Sprintf("https://www.virustotal.com/gui/file/%s/detection", indicator)
+			}
+			report := &IOCResult{
+				IOCType:     iocType,
+				Indicator:   indicator,
+				Message:     msg,
+				ExternalUrl: externalUrl,
+				ResultId:    NewResultId(event),
+			}
+			filter.AlertCh <- report
 		}
 	}
 	filter.State <- 1

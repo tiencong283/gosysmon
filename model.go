@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	log "github.com/sirupsen/logrus"
 	"strconv"
 	"time"
@@ -19,6 +20,7 @@ type ListHead struct {
 
 // Process is an process/task representation
 type Process struct {
+	Abandoned   bool   // true if the process not derived from event ProcessCreate
 	ProcessGuid string `json:"-"`
 	// process creation and termination time
 	CreatedAt    *time.Time `json:"-"`
@@ -36,29 +38,32 @@ type Process struct {
 	// product information
 	FileVersion, Description, Product, Company string
 	// relationship
-	Parent   *Process `json:"-"`
-	Children ListHead `json:"-"`
-	Sibling  ListHead `json:"-"`
+	ParentPGuid string   `json:"-"`
+	Parent      *Process `json:"-"`
+	Children    ListHead `json:"-"`
+	Sibling     ListHead `json:"-"`
 
-	Alerts []*RContext `json:"-"`
+	Features []*MitreATTCKResult `json:"-"`
 }
 
 // client representation
 type Host struct {
-	Name      string
-	FirstSeen time.Time
-	Active    bool
-	Procs     map[string]*Process `json:"-"`
+	ProviderGuid string
+	Name         string
+	FirstSeen    time.Time
+	Active       bool
+	Procs        map[string]*Process `json:"-"`
 }
 
 // NewHost returns new instance of Host
 func NewHostFrom(event *SysmonEvent) *Host {
 	t, _ := time.Parse(TimeFormat, event.EventData["UtcTime"])
 	return &Host{
-		Name:      event.ComputerName,
-		FirstSeen: t,
-		Active:    true,
-		Procs:     make(map[string]*Process, 10000),
+		ProviderGuid: event.ProviderGUID,
+		Name:         event.ComputerName,
+		FirstSeen:    t,
+		Active:       true,
+		Procs:        make(map[string]*Process, 10000),
 	}
 }
 
@@ -84,15 +89,16 @@ func (host *Host) GetProcess(pGuid string) *Process {
 }
 
 // AddProcess creates a new process for the event
-func (host *Host) AddProcess(pGuid, pid, image, cmd string) *Process {
+func (host *Host) AddProcess(abandoned bool, pGuid, pid, image, cmd string) *Process {
 	processId, _ := strconv.Atoi(pid)
 	proc := &Process{
+		Abandoned:   abandoned,
 		ProcessGuid: pGuid,
 		State:       PSRunning,
 		ProcessId:   processId,
 		Image:       image,
 		CommandLine: cmd,
-		Alerts:      make([]*RContext, 0, 32),
+		Features:    make([]*MitreATTCKResult, 0, 32),
 	}
 	proc.Sibling.Process = proc
 	proc.Children.Process = proc
@@ -111,21 +117,72 @@ type HostManager struct {
 	State   chan int // simulate ON/OFF state
 	Hosts   map[string]*Host
 	EventCh chan *SysmonEvent
-	AlertCh chan *RContext
-	Alerts  []*RContext
+	AlertCh chan interface{}
+	Alerts  []*MitreATTCKResult
+	IOCs    []*IOCResult
 	logger  *log.Entry
 }
 
 // NewHostManager returns new instance of HostManager
-func NewHostManager(alertCh chan *RContext) *HostManager {
+func NewHostManager(alertCh chan interface{}) *HostManager {
 	return &HostManager{
 		State:   make(chan int),
 		Hosts:   make(map[string]*Host),
 		EventCh: make(chan *SysmonEvent, EventChBufSize),
 		AlertCh: alertCh,
-		Alerts:  make([]*RContext, 0, AlertChBufSize*10),
+		Alerts:  make([]*MitreATTCKResult, 0, AlertChBufSize*10),
+		IOCs:    make([]*IOCResult, 0, AlertChBufSize*10),
 		logger:  log.WithField("section", "HostManager"),
 	}
+}
+
+// LoadData loads all data from database into the HostManager
+func (hm *HostManager) LoadData() error {
+	hosts, err := PgConn.GetAllHosts()
+	if err != nil {
+		return err
+	}
+	for _, host := range hosts { // load hosts
+		hm.Hosts[host.ProviderGuid] = host
+		procs, err := PgConn.GetProcessesByHost(host.ProviderGuid)
+		if err != nil {
+			return err
+		}
+		for _, proc := range procs { // load processes
+			proc.Sibling.Process = proc
+			proc.Children.Process = proc
+
+			if proc.ParentPGuid != "" {
+				parent := host.GetProcess(proc.ParentPGuid)
+				if parent == nil {
+					return errors.New("ERROR: malformed process database")
+				}
+				proc.Parent = parent
+				parent.AddChildProc(proc)
+			}
+			host.Procs[proc.ProcessGuid] = proc
+
+			// load features
+			features, err := PgConn.GetFeaturesByProcess(host.ProviderGuid, proc.ProcessGuid)
+			if err != nil {
+				return err
+			}
+			if len(features) > 0 {
+				proc.Features = features
+			} else {
+				proc.Features = make([]*MitreATTCKResult, 0, 32)
+			}
+		}
+	}
+	// load all IOCs
+	iocs, err := PgConn.GetAllIOCs()
+	if err != nil {
+		return err
+	}
+	if len(iocs) > 0 {
+		hm.IOCs = append(hm.IOCs, iocs...)
+	}
+	return nil
 }
 
 // Start is the thread entry point
@@ -154,17 +211,46 @@ func (hm *HostManager) Start() {
 }
 
 // OnAlert updates the alert into its process
-func (hm *HostManager) OnAlert(alert *RContext) {
-	host := hm.GetHost(alert.ProviderGUID)
+func (hm *HostManager) OnAlert(alert interface{}) {
+	var resultId *ResultId
+	var mar *MitreATTCKResult
+	var ioc *IOCResult
+
+	switch alert.(type) {
+	case *MitreATTCKResult:
+		mar = alert.(*MitreATTCKResult)
+		resultId = &mar.ResultId
+	case *IOCResult:
+		ioc = alert.(*IOCResult)
+		resultId = &ioc.ResultId
+	default:
+		return
+	}
+	host := hm.GetHost(resultId.ProviderGUID)
 	if host == nil {
 		hm.AlertCh <- alert
 	} else {
-		proc := host.GetProcess(alert.ProcessGuid)
+		proc := host.GetProcess(resultId.ProcessGuid)
 		if proc == nil { // in rare cases when the process is not mapped to the tree yet (some kind of delays)
 			hm.AlertCh <- alert
 			return
 		}
-		proc.Alerts = append(proc.Alerts, alert)
+		// mapping to corresponding process and db
+		switch alert.(type) {
+		case *MitreATTCKResult:
+			if mar != nil && mar.IsAlert {
+				hm.Alerts = append(hm.Alerts, mar)
+			}
+			proc.Features = append(proc.Features, mar)
+			if err := PgConn.SaveFeature(mar); err != nil {
+				log.Warnf("cannot persist the feature, %s\n", err)
+			}
+		case *IOCResult:
+			hm.IOCs = append(hm.IOCs, ioc)
+			if err := PgConn.SaveIOC(ioc); err != nil {
+				log.Warnf("cannot persist the IOC, %s\n", err)
+			}
+		}
 		log.Debug(ToJson(alert))
 	}
 }
@@ -181,10 +267,12 @@ func (hm *HostManager) OnProcessEvent(event *SysmonEvent) {
 		ppGuid := event.get("ParentProcessGuid")
 		parent := host.GetProcess(ppGuid)
 		if parent == nil {
-			parent = host.AddProcess(ppGuid, event.get("ParentProcessId"), event.get("ParentImage"), event.get("ParentCommandLine"))
-			_ = PgConn.SaveProc(host, parent)
+			parent = host.AddProcess(true, ppGuid, event.get("ParentProcessId"), event.get("ParentImage"), event.get("ParentCommandLine"))
+			if err := PgConn.SaveProc(event.ProviderGUID, parent); err != nil {
+				log.Warnf("cannot persist the process, %s\n", err)
+			}
 		}
-		process := host.AddProcess(processGuid, processId, event.get("Image"), event.get("CommandLine"))
+		process := host.AddProcess(false, processGuid, processId, event.get("Image"), event.get("CommandLine"))
 		process.CreatedAt = event.timestamp()
 		process.OriginalFileName = event.get("OriginalFileName")
 		process.CurrentDirectory = event.get("CurrentDirectory")
@@ -198,19 +286,26 @@ func (hm *HostManager) OnProcessEvent(event *SysmonEvent) {
 
 		process.Parent = parent
 		parent.AddChildProc(process)
-		_ = PgConn.SaveProc(host, process)
+		if err := PgConn.SaveProc(event.ProviderGUID, process)
+			err != nil {
+			log.Warnf("cannot persist the process, %s\n", err)
+		}
 
 	case EProcessTerminate:
 		if process := host.GetProcess(processGuid); process != nil {
 			process.State = PSStopped
 			process.TerminatedAt = event.timestamp()
-			_ = PgConn.UpdateProcTerm(host, process)
+			if err := PgConn.UpdateProcTerm(event.ProviderGUID, process); err != nil {
+				log.Warnf("cannot update the process state, %s\n", err)
+			}
 		}
 	default:
 		var process *Process
 		if process = host.GetProcess(processGuid); process == nil {
-			process = host.AddProcess(processGuid, processId, event.get("Image"), "")
-			_ = PgConn.SaveProc(host, process)
+			process = host.AddProcess(true, processGuid, processId, event.get("Image"), "")
+			if err := PgConn.SaveProc(event.ProviderGUID, process); err != nil {
+				log.Warnf("cannot persist the process, %s\n", err)
+			}
 		}
 	}
 }
@@ -218,7 +313,7 @@ func (hm *HostManager) OnProcessEvent(event *SysmonEvent) {
 // AddHost adds new host
 func (hm *HostManager) AddHost(providerGuid string, host *Host) {
 	hm.Hosts[providerGuid] = host
-	_ = PgConn.SaveHost(host)
+	_ = PgConn.SaveHost(providerGuid, host)
 }
 
 // GetHost return the host with corresponding providerGuid
@@ -252,8 +347,7 @@ func (hm *HostManager) DumpProcess(providerGuid, processGuid string) {
 		if proc == nil {
 			return
 		}
-		log.Println(ToJson(proc))
-
+		log.Printf("pid: %d, image: %s, cmd: %s\n", proc.ProcessId, proc.Image, proc.CommandLine)
 		head := &proc.Children
 		for cur := head.Next; cur != head; cur = cur.Next {
 			log.Printf("pid: %d, image: %s, cmd: %s\n", cur.ProcessId, cur.Image, cur.CommandLine)

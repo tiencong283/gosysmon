@@ -160,19 +160,21 @@ func (mf *RuleFilter) StateCh() chan int {
 	return mf.State
 }
 
-func (mf *RuleFilter) SetAlertCh(alertCh chan *RContext) {
+func (mf *RuleFilter) SetAlertCh(alertCh chan interface{}) {
 	mf.AlertCh = alertCh
 }
 
 func (mf *RuleFilter) Start() {
 	for event := range mf.eventCh {
-		techID := mf.GetTechID(event)
-		if len(techID) == 0 {
-			continue
+		if labels := mf.GetLabels(event); labels != nil {
+			isAlert := true
+			if labels["is_alert"] != "" {
+				isAlert, _ = strconv.ParseBool(labels["is_alert"])
+			}
+			alert := NewMitreATTCKResult(isAlert, labels["technique_id"], "", event)
+			alert.MergeContext(event.EventData)
+			mf.AlertCh <- alert
 		}
-		alert := NewRContext(techID, "", event)
-		alert.MergeContext(event.EventData)
-		mf.AlertCh <- alert
 	}
 	mf.State <- 1
 }
@@ -553,17 +555,20 @@ func (mf *RuleFilter) isMatched(event *SysmonEvent, ruleName string, filter map[
 	return false, ""
 }
 
-// GetTechID returns the technique ID matched with the event
-func (mf *RuleFilter) GetTechID(event *SysmonEvent) string {
+// GetLabels returns the labels of matched rule
+func (mf *RuleFilter) GetLabels(event *SysmonEvent) map[string]string {
 	ruleName, ok := mf.SchemaDef.EventIDToRuleName[event.EventID]
 	if !ok { // unsupported event
-		return ""
+		return nil
 	}
 	// exclude matches take precedence
 	matched, _ := mf.isMatched(event, ruleName, mf.Filters[1])
 	if matched {
-		return ""
+		return nil
 	}
-	_, label := mf.isMatched(event, ruleName, mf.Filters[0])
-	return GetKeyFrom(label, "technique_id")
+	matched, label := mf.isMatched(event, ruleName, mf.Filters[0])
+	if !matched {
+		return nil
+	}
+	return StringToMap(label)
 }

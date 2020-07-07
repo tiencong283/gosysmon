@@ -35,8 +35,6 @@ const (
 	DefSaveOnExit = true
 )
 
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
-
 // Config is the application configuration
 type Config struct {
 	KafkaBrokers string
@@ -85,6 +83,8 @@ func (config *Config) InitFrom(configFilePath string) error {
 	config.SaveOnExit = viper.GetBool("save-on-exit")
 	return nil
 }
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 func init() {
 	// setup the logger
