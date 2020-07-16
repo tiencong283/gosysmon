@@ -220,12 +220,12 @@ func (hm *HostManager) OnAlert(alert interface{}) {
 	var mar *MitreATTCKResult
 	var ioc *IOCResult
 
-	switch alert.(type) {
+	switch alert := alert.(type) {
 	case *MitreATTCKResult:
-		mar = alert.(*MitreATTCKResult)
+		mar = alert
 		resultId = &mar.ResultId
 	case *IOCResult:
-		ioc = alert.(*IOCResult)
+		ioc = alert
 		resultId = &ioc.ResultId
 	default:
 		return
@@ -292,8 +292,7 @@ func (hm *HostManager) OnProcessEvent(event *SysmonEvent) {
 
 		process.Parent = parent
 		parent.AddChildProc(process)
-		if err := PgConn.SaveProc(event.ProviderGUID, process)
-			err != nil {
+		if err := PgConn.SaveProc(event.ProviderGUID, process); err != nil {
 			log.Warnf("cannot persist the process, %s\n", err)
 		}
 
