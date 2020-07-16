@@ -340,13 +340,13 @@ func (mf *RuleFilter) onRuleFilter(combinedRule *CombinedRule, label, groupRelat
 
 // getElementName returns the name of an element
 func getElementName(element xml.Token) string {
-	switch element.(type) {
+	switch element := element.(type) {
 	case xml.StartElement:
-		return element.(xml.StartElement).Name.Local
+		return element.Name.Local
 	case xml.EndElement:
-		return element.(xml.EndElement).Name.Local
+		return element.Name.Local
 	case xml.Attr:
-		return element.(xml.Attr).Name.Local
+		return element.Name.Local
 	}
 	return ""
 }
@@ -425,9 +425,9 @@ func (mf *RuleFilter) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error
 		}
 		elementName := getElementName(token)
 		lastElementName := tokStk[len(tokStk)-1]
-		switch token.(type) {
+		switch token := token.(type) {
 		case xml.StartElement:
-			element := token.(xml.StartElement)
+			element := token
 			// check if it's the valid relationship (parent-child)
 			parent := lastElementName
 			if parent == "Rule" {
