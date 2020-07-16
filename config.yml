@@ -1,3 +1,7 @@
+api:
+  host: localhost
+  port: 9090
+
 # the address of Sysmon logs
 kafka:
   brokers: localhost:9092
@@ -20,4 +24,4 @@ redis:
 
 virustotal-api: "e96afa0609dbc5a5111cee2039a203c14587e20c66360397280916edd6fc30ce"
 # if enable it will parse logs from last offset instead of from the start
-save-on-exit: yes
+save-on-exit: false

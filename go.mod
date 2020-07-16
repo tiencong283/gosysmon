@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/beevik/etree v1.1.0
+	github.com/gin-gonic/gin v1.6.3 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/jackc/pgx v3.6.2+incompatible
 	github.com/jackc/pgx/v4 v4.7.1

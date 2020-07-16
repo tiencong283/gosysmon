@@ -33,6 +33,10 @@ const (
 
 	// default app behavior
 	DefSaveOnExit = true
+
+	// default endpoint api
+	DefAPIHost = "0.0.0.0"
+	DefAPIPort = "9090"
 )
 
 // Config is the application configuration
@@ -42,6 +46,8 @@ type Config struct {
 	PgConUrl     string
 	RedisConUrl  string
 	SaveOnExit   bool
+	APIHost      string
+	APIPort      string
 }
 
 // InitFrom reads configuration from file configFilePath
@@ -61,7 +67,8 @@ func (config *Config) InitFrom(configFilePath string) error {
 	viper.SetDefault("redis.port", DefPgPort)
 	viper.SetDefault("redis.user", DefPgUser)
 	viper.SetDefault("redis.password", DefPgPassword)
-	viper.SetDefault("save-on-exit", DefSaveOnExit)
+	viper.SetDefault("api.host", DefAPIHost)
+	viper.SetDefault("api.port", DefAPIPort)
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
@@ -81,6 +88,8 @@ func (config *Config) InitFrom(configFilePath string) error {
 		viper.GetString("redis.host"), viper.GetInt("redis.port"))
 
 	config.SaveOnExit = viper.GetBool("save-on-exit")
+	config.APIHost = viper.GetString("api.host")
+	config.APIPort = viper.GetString("api.port")
 	return nil
 }
 

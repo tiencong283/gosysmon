@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/beevik/etree"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"os"
@@ -90,11 +89,11 @@ func (mf *RuleFilter) IsSupported(event *SysmonEvent) bool {
 
 // Init loads rule's schema definition and rules
 func (mf *RuleFilter) Init() error {
+	mf.logger.Infoln("initializing")
 	schemaDef := mf.SchemaDef
 
 	// Load schema definition
 	doc := etree.NewDocument()
-	log.Infof("Loading configuration schema definition from %s\n", SchemaDefFilePath)
 	if err := doc.ReadFromFile(SchemaDefFilePath); err != nil {
 		return err
 	}
@@ -166,7 +165,7 @@ func (mf *RuleFilter) SetAlertCh(alertCh chan interface{}) {
 
 func (mf *RuleFilter) Start() {
 	for event := range mf.eventCh {
-		if labels := mf.GetLabels(event); labels != nil {
+		if labels := mf.GetLabels(event); len(labels) > 0 {
 			isAlert := true
 			if labels["is_alert"] != "" {
 				isAlert, _ = strconv.ParseBool(labels["is_alert"])
@@ -188,7 +187,7 @@ func (mf *RuleFilter) LoadFromDir(ruleDirPath string) error {
 		if info.IsDir() || filepath.Ext(path) != ".xml" {
 			return nil
 		}
-		log.Infof("parsing rules from %s\n", path)
+		mf.logger.Infof("parsing rules from %s\n", path)
 		return mf.UpdateFrom(path)
 	})
 }

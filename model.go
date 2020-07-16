@@ -2,8 +2,11 @@ package main
 
 import (
 	"errors"
+	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
+	"net/http"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -114,13 +117,14 @@ func (host *Host) GetNumberOfProcesses() int {
 // HostManager manages sensor clients, the key is ProviderGuid which is the identity of the application or service (Sysmon) that logged the record
 // so it can be used relatively to represent a computer
 type HostManager struct {
-	State   chan int // simulate ON/OFF state
-	Hosts   map[string]*Host
-	EventCh chan *SysmonEvent
-	AlertCh chan interface{}
-	Alerts  []*MitreATTCKResult
-	IOCs    []*IOCResult
-	logger  *log.Entry
+	State     chan int // simulate ON/OFF state
+	Hosts     map[string]*Host
+	HostsLock sync.Mutex
+	EventCh   chan *SysmonEvent
+	AlertCh   chan interface{}
+	Alerts    []*MitreATTCKResult
+	IOCs      []*IOCResult
+	logger    *log.Entry
 }
 
 // NewHostManager returns new instance of HostManager
@@ -228,10 +232,12 @@ func (hm *HostManager) OnAlert(alert interface{}) {
 	}
 	host := hm.GetHost(resultId.ProviderGUID)
 	if host == nil {
+		// todo: the channel can be closed
 		hm.AlertCh <- alert
 	} else {
 		proc := host.GetProcess(resultId.ProcessGuid)
 		if proc == nil { // in rare cases when the process is not mapped to the tree yet (some kind of delays)
+			// todo: the channel can be closed
 			hm.AlertCh <- alert
 			return
 		}
@@ -312,7 +318,9 @@ func (hm *HostManager) OnProcessEvent(event *SysmonEvent) {
 
 // AddHost adds new host
 func (hm *HostManager) AddHost(providerGuid string, host *Host) {
+	hm.HostsLock.Lock()
 	hm.Hosts[providerGuid] = host
+	hm.HostsLock.Unlock()
 	_ = PgConn.SaveHost(providerGuid, host)
 }
 
@@ -338,19 +346,13 @@ func (hm *HostManager) GetNumOfHosts() int {
 	return len(hm.Hosts)
 }
 
-// *********************************************************************************************************************
-func (hm *HostManager) DumpProcess(providerGuid, processGuid string) {
-	if host := hm.GetHost(providerGuid); host != nil {
-		log.Println(ToJson(host))
-		log.Printf("Number of processes: %d\n", host.GetNumberOfProcesses())
-		proc := host.GetProcess(processGuid)
-		if proc == nil {
-			return
-		}
-		log.Printf("pid: %d, image: %s, cmd: %s\n", proc.ProcessId, proc.Image, proc.CommandLine)
-		head := &proc.Children
-		for cur := head.Next; cur != head; cur = cur.Next {
-			log.Printf("pid: %d, image: %s, cmd: %s\n", cur.ProcessId, cur.Image, cur.CommandLine)
-		}
+// request handler for "/api/host"
+func (hm *HostManager) AllHostHandler(context *gin.Context) {
+	hosts := make([]*Host, 0)
+	hm.HostsLock.Lock()
+	for _, host := range hm.Hosts {
+		hosts = append(hosts, host)
 	}
+	hm.HostsLock.Unlock()
+	context.JSON(http.StatusOK, hosts)
 }

@@ -54,7 +54,7 @@ type IOCFilter struct {
 	CommonFilterer
 }
 
-func newIOCFilter() *IOCFilter {
+func NewIOCFilter() *IOCFilter {
 	return &IOCFilter{
 		Client:         new(http.Client),
 		VirustotalAPI:  viper.GetString("virustotal-api"),
@@ -75,6 +75,7 @@ func (filter *IOCFilter) IsSupported(event *SysmonEvent) bool {
 }
 
 func (filter *IOCFilter) Init() error {
+	filter.logger.Infoln("initializing")
 	return nil
 }
 
@@ -153,6 +154,14 @@ func (filter *IOCFilter) CheckIOC(indicator string, iocType int) (bool, error) {
 	return false, fmt.Errorf("virustotal response code %d", resp.StatusCode)
 }
 
+func (filter *IOCFilter) filterQueryName(dnsName string) bool {
+	if strings.IndexByte(dnsName, '.') < 0 {
+		return true
+	}
+	// todo: filter special and reserved dns names
+	return false
+}
+
 func (filter *IOCFilter) Start() {
 	var indicator string
 	var iocType int
@@ -172,7 +181,11 @@ func (filter *IOCFilter) Start() {
 			if err != nil || queryStatus != 0 {
 				continue
 			}
-			indicator, iocType = event.get("QueryName"), IOCDomain
+			queryName := event.get("QueryName")
+			if filter.filterQueryName(queryName) {
+				continue
+			}
+			indicator, iocType = queryName, IOCDomain
 		case ENetworkConnect:
 			if event.getBool("DestinationIsIpv6") {
 				continue

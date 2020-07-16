@@ -12,8 +12,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer engine.Close()
 	if err := engine.Start(); err != nil {
+		engine.Close()
 		log.Fatal(err)
 	}
+	engine.Close()
 }

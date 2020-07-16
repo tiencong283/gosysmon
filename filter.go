@@ -96,7 +96,7 @@ type AttackPattern struct {
 	Tactics       []string
 }
 
-var Techniques = make(map[string]*AttackPattern, 0)
+var Techniques = make(map[string]*AttackPattern)
 
 func init() {
 	// initialize

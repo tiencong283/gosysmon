@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -59,6 +61,7 @@ type Engine struct {
 	FilterEngine    *FilterEngine
 	ExtractorEngine *ExtractorEngine
 	TermChan        chan os.Signal
+	Server          *http.Server
 }
 
 func NewFilterEngine(alertCh chan interface{}) *FilterEngine {
@@ -92,7 +95,6 @@ func NewEngine(configFilePath string) (*Engine, error) {
 	if engine.Config.SaveOnExit { // not parsing from the start
 		lastOffset = PgConn.GetPreKafkaOffset()
 	}
-	log.Infof("parsing logs from offset %d\n", lastOffset)
 	engine.Reader = kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  []string{engine.Config.KafkaBrokers},
 		Topic:    engine.Config.KafkaTopic,
@@ -108,12 +110,13 @@ func NewEngine(configFilePath string) (*Engine, error) {
 	if err := engine.FilterEngine.Register(NewRuleFilter()); err != nil {
 		return nil, err
 	}
-	if err := engine.FilterEngine.Register(newIOCFilter()); err != nil {
+	if err := engine.FilterEngine.Register(NewIOCFilter()); err != nil {
 		return nil, err
 	}
 	// signal handling
 	engine.TermChan = make(chan os.Signal, 64)
-	signal.Notify(engine.TermChan, os.Interrupt, os.Kill, syscall.SIGTERM)
+	signal.Notify(engine.TermChan, os.Interrupt, syscall.SIGTERM)
+
 	return engine, nil
 }
 
@@ -131,6 +134,7 @@ func (engine *Engine) Start() error {
 
 	go engine.HostManager.Start()
 	go engine.FilterEngine.Start()
+	engine.StartWebApp()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func(termChan chan os.Signal, cancel context.CancelFunc) {
@@ -175,9 +179,29 @@ func (engine *Engine) Start() error {
 	return nil
 }
 
+func (engine *Engine) StartWebApp() {
+	gin.SetMode(gin.ReleaseMode)
+	endpoint := engine.Config.APIHost + ":" + engine.Config.APIPort
+	log.Infoln("Start serving endpoint APIs at", endpoint)
+	router := gin.Default()
+	apiGroup := router.Group("api")
+	apiGroup.GET("host", engine.HostManager.AllHostHandler)
+
+	engine.Server = &http.Server{
+		Addr:    endpoint,
+		Handler: router,
+	}
+	go func() {
+		if err := engine.Server.ListenAndServe(); err != nil {
+			log.Fatal(err)
+		}
+	}()
+}
+
 // Close cleans up any resources
 func (engine *Engine) Close() {
 	_ = engine.Reader.Close()
-	PgConn.Close()
 	_ = RedisConn.Close()
+	PgConn.Close()
+	_ = engine.Server.Shutdown(context.Background())
 }
