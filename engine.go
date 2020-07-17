@@ -190,6 +190,7 @@ func (engine *Engine) StartWebApp() {
 
 	apiGroup := router.Group("api")
 	apiGroup.GET("host", engine.HostManager.AllHostHandler)
+	apiGroup.GET("ioc", engine.HostManager.AllIOCHandler)
 
 	go func() {
 		if err := router.Run(endpoint); err != nil {

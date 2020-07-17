@@ -124,6 +124,7 @@ type HostManager struct {
 	AlertCh   chan interface{}
 	Alerts    []*MitreATTCKResult
 	IOCs      []*IOCResult
+	IOCsLock  sync.Mutex
 	logger    *log.Entry
 }
 
@@ -252,7 +253,10 @@ func (hm *HostManager) OnAlert(alert interface{}) {
 				log.Warnf("cannot persist the feature, %s\n", err)
 			}
 		case *IOCResult:
+			hm.IOCsLock.Lock()
 			hm.IOCs = append(hm.IOCs, ioc)
+			hm.IOCsLock.Unlock()
+
 			if err := PgConn.SaveIOC(ioc); err != nil {
 				log.Warnf("cannot persist the IOC, %s\n", err)
 			}
@@ -354,4 +358,15 @@ func (hm *HostManager) AllHostHandler(context *gin.Context) {
 	}
 	hm.HostsLock.Unlock()
 	context.JSON(http.StatusOK, hosts)
+}
+
+// request handler for "/api/ioc"
+func (hm *HostManager) AllIOCHandler(context *gin.Context) {
+	iocList := make([]*IOCResult, 0)
+	hm.IOCsLock.Lock()
+	for _, ioc := range hm.IOCs {
+		iocList = append(iocList, ioc)
+	}
+	hm.IOCsLock.Unlock()
+	context.JSON(http.StatusOK, iocList)
 }

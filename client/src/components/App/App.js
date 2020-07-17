@@ -13,7 +13,7 @@ class App extends React.Component {
         return (
             <Router>
                 <div className="grid-container">
-                    <div className="grid-x main-container">
+                    <div className="grid-x grid-margin-x main-container">
                         <Header/>
                         <div className="cell auto main-content">
                             <Switch>

@@ -61,7 +61,7 @@ func (conn *DBConn) DeleteAll() error {
 	if _, err := conn.db.Exec("DELETE FROM Processes"); err != nil {
 		return err
 	}
-	if _, err := conn.db.Exec("DELETE FROM IOCs"); err != nil {
+	if _, err := conn.db.Exec("DELETE FROM Hosts"); err != nil {
 		return err
 	}
 	return nil
@@ -82,7 +82,7 @@ func (conn *DBConn) GetOrPreparedSmt(query string) (*sql.Stmt, error) {
 
 // SaveHost inserts new host into IOCs table
 func (conn *DBConn) SaveHost(providerGuid string, host *Host) error {
-	query := "INSERT INTO IOCs(ProviderGuid, Name, FirstSeen, Active) VALUES($1, $2, $3, $4)"
+	query := "INSERT INTO Hosts(ProviderGuid, Name, FirstSeen, Active) VALUES($1, $2, $3, $4)"
 	stmt, err := conn.GetOrPreparedSmt(query)
 	if err != nil {
 		return err
@@ -177,7 +177,7 @@ func (conn *DBConn) SaveKafkaOffset(offset int64) error {
 // GetAllHosts returns all hosts
 func (conn *DBConn) GetAllHosts() ([]*Host, error) {
 	hosts := make([]*Host, 0)
-	query := "SELECT ProviderGuid,Name,FirstSeen,Active FROM IOCs ORDER BY Id"
+	query := "SELECT ProviderGuid,Name,FirstSeen,Active FROM Hosts ORDER BY Id"
 	rows, err := conn.db.Query(query)
 	if err != nil {
 		return nil, err
