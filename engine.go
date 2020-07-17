@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -61,7 +61,6 @@ type Engine struct {
 	FilterEngine    *FilterEngine
 	ExtractorEngine *ExtractorEngine
 	TermChan        chan os.Signal
-	Server          *http.Server
 }
 
 func NewFilterEngine(alertCh chan interface{}) *FilterEngine {
@@ -181,18 +180,19 @@ func (engine *Engine) Start() error {
 
 func (engine *Engine) StartWebApp() {
 	gin.SetMode(gin.ReleaseMode)
-	endpoint := engine.Config.APIHost + ":" + engine.Config.APIPort
-	log.Infoln("Start serving endpoint APIs at", endpoint)
+	endpoint := engine.Config.ServerHost + ":" + engine.Config.ServerPort
+	log.Infoln("Starting the server at", endpoint)
 	router := gin.Default()
+	// index.html
+	router.StaticFile("", "./client/build/index.html")
+	// static middleware
+	router.Use(static.Serve("/", static.LocalFile("./client/build", false)))
+
 	apiGroup := router.Group("api")
 	apiGroup.GET("host", engine.HostManager.AllHostHandler)
 
-	engine.Server = &http.Server{
-		Addr:    endpoint,
-		Handler: router,
-	}
 	go func() {
-		if err := engine.Server.ListenAndServe(); err != nil {
+		if err := router.Run(endpoint); err != nil {
 			log.Fatal(err)
 		}
 	}()
@@ -203,5 +203,4 @@ func (engine *Engine) Close() {
 	_ = engine.Reader.Close()
 	_ = RedisConn.Close()
 	PgConn.Close()
-	_ = engine.Server.Shutdown(context.Background())
 }
