@@ -13,28 +13,14 @@ class HostList extends React.Component {
     }
 
     componentDidMount() {
-        var that = this
         $.ajax({
             url: endpoint,
             dataType: "json",
             success: function (data) {
-                let tmpHostList = []
-                $.each(data, function (index) {
-                    console.log("host: ", data[index])
-                    let host = data[index]
-                    tmpHostList.push(
-                        <tr>
-                            <td><span>{host.Name}</span></td>
-                            <td><span>{host.Active ? "Active" : "Not active"}</span></td>
-                            <td><span>{host.FirstSeen}</span></td>
-                        </tr>
-                    )
-                });
-                console.log("number of hosts: ", tmpHostList.length)
-                that.setState({
-                    hostList: tmpHostList,
+                this.setState({
+                    hostList: data,
                 })
-            },
+            }.bind(this),
         })
     }
 
@@ -50,7 +36,17 @@ class HostList extends React.Component {
                     </tr>
                     </thead>
                     <tbody>
-                    {this.state.hostList}
+                    {
+                        this.state.hostList.map(function (host) {
+                            return (
+                                <tr>
+                                    <td><span>{host.Name}</span></td>
+                                    <td><span>{host.Active ? "Active" : "Not active"}</span></td>
+                                    <td><span>{host.FirstSeen}</span></td>
+                                </tr>
+                            )
+                        })
+                    }
                     </tbody>
                 </table>
             </div>
