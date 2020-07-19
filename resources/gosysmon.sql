@@ -1,5 +1,5 @@
 -- Host table
-CREATE TABLE HostList
+CREATE TABLE Hosts
 (
     Id           SERIAL,
     ProviderGuid VARCHAR(64) PRIMARY KEY,
@@ -12,7 +12,7 @@ CREATE TABLE HostList
 CREATE TABLE Processes
 (
     Id           SERIAL,
-    ProviderGuid VARCHAR(64) REFERENCES HostList (ProviderGuid),
+    ProviderGuid VARCHAR(64) REFERENCES Hosts (ProviderGuid),
     ProcessGuid  VARCHAR(64) PRIMARY KEY,
     CreatedAt    Timestamp,
     TerminatedAt Timestamp,
@@ -42,7 +42,8 @@ CREATE TABLE Processes
 CREATE TABLE Features
 (
     Id          SERIAL PRIMARY KEY,
-    ProviderGuid VARCHAR(64) REFERENCES HostList (ProviderGuid),
+    Timestamp   Timestamp,
+    ProviderGuid VARCHAR(64) REFERENCES Hosts (ProviderGuid),
     ProcessGuid VARCHAR(64) REFERENCES Processes (ProcessGuid),
     IsAlert     BOOL DEFAULT TRUE,
     Context     TEXT NOT NULL,
@@ -54,7 +55,8 @@ CREATE TABLE Features
 CREATE TABLE IOCs
 (
     Id          SERIAL PRIMARY KEY,
-    ProviderGuid VARCHAR(64) REFERENCES HostList (ProviderGuid),
+    Timestamp   Timestamp,
+    ProviderGuid VARCHAR(64) REFERENCES Hosts (ProviderGuid),
     ProcessGuid VARCHAR(64) REFERENCES Processes (ProcessGuid),
     IOCType     INT  NOT NULL,
     Indicator   TEXT NOT NULL,

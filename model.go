@@ -117,15 +117,16 @@ func (host *Host) GetNumberOfProcesses() int {
 // HostManager manages sensor clients, the key is ProviderGuid which is the identity of the application or service (Sysmon) that logged the record
 // so it can be used relatively to represent a computer
 type HostManager struct {
-	State     chan int // simulate ON/OFF state
-	Hosts     map[string]*Host
-	HostsLock sync.Mutex
-	EventCh   chan *SysmonEvent
-	AlertCh   chan interface{}
-	Alerts    []*MitreATTCKResult
-	IOCs      []*IOCResult
-	IOCsLock  sync.Mutex
-	logger    *log.Entry
+	State      chan int // simulate ON/OFF state
+	Hosts      map[string]*Host
+	HostsLock  sync.Mutex
+	EventCh    chan *SysmonEvent
+	AlertCh    chan interface{}
+	Alerts     []*MitreATTCKResult
+	AlertsLock sync.Mutex
+	IOCs       []*IOCResult
+	IOCsLock   sync.Mutex
+	logger     *log.Entry
 }
 
 // NewHostManager returns new instance of HostManager
@@ -352,21 +353,55 @@ func (hm *HostManager) GetNumOfHosts() int {
 // request handler for "/api/host"
 func (hm *HostManager) AllHostHandler(context *gin.Context) {
 	hosts := make([]*Host, 0)
+
 	hm.HostsLock.Lock()
 	for _, host := range hm.Hosts {
 		hosts = append(hosts, host)
 	}
 	hm.HostsLock.Unlock()
+
 	context.JSON(http.StatusOK, hosts)
 }
 
 // request handler for "/api/ioc"
 func (hm *HostManager) AllIOCHandler(context *gin.Context) {
-	iocList := make([]*IOCResult, 0)
 	hm.IOCsLock.Lock()
-	for _, ioc := range hm.IOCs {
-		iocList = append(iocList, ioc)
-	}
+	iocList := make([]*IOCResult, len(hm.IOCs))
+	copy(iocList, hm.IOCs)
 	hm.IOCsLock.Unlock()
+
 	context.JSON(http.StatusOK, iocList)
+}
+
+// AlertView is the view layer for alert object
+type AlertView struct {
+	*MitreATTCKResult
+	HostName     string
+	ProcessImage string
+	ProcessId    int
+}
+
+func (hm *HostManager) NewAlertView(alert *MitreATTCKResult) *AlertView {
+	alertView := new(AlertView)
+	alertView.MitreATTCKResult = alert
+	if host := hm.GetHost(alert.ProviderGUID); host != nil {
+		alertView.HostName = host.Name
+		if proc := host.GetProcess(alert.ProcessGuid); proc != nil {
+			alertView.ProcessImage = GetImageName(proc.Image)
+			alertView.ProcessId = proc.ProcessId
+		}
+	}
+	return alertView
+}
+
+// request handler for "/api/alert"
+func (hm *HostManager) AllAlertHandler(context *gin.Context) {
+	hm.AlertsLock.Lock()
+	alertViews := make([]*AlertView, len(hm.Alerts))
+	for i, alert := range hm.Alerts {
+		alertViews[i] = hm.NewAlertView(alert)
+	}
+	hm.AlertsLock.Unlock()
+
+	context.JSON(http.StatusOK, alertViews)
 }

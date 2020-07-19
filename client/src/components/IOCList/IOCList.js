@@ -31,6 +31,7 @@ class IOCList extends React.Component {
                 <table className="ioc-table hover unstriped">
                     <thead>
                     <tr>
+                        <th>Timestamp</th>
                         <th>Type</th>
                         <th>Indicator</th>
                         <th>Message</th>
@@ -41,6 +42,7 @@ class IOCList extends React.Component {
                         this.state.iocList.map(function (ioc) {
                             return (
                                 <tr>
+                                    <td><span>{ioc.Timestamp}</span></td>
                                     <td><span>{iocTypes[ioc.IOCType]}</span></td>
                                     <td><a href={ioc.ExternalUrl}>{ioc.Indicator}</a></td>
                                     <td><span>{ioc.Message}</span></td>

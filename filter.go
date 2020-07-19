@@ -4,6 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
+	"time"
 )
 
 const (
@@ -12,8 +13,8 @@ const (
 )
 
 type ResultId struct {
-	ProviderGUID string `json:"-"`
-	ProcessGuid  string `json:"-"`
+	ProviderGUID string
+	ProcessGuid  string
 }
 
 func NewResultId(event *SysmonEvent) ResultId {
@@ -26,7 +27,8 @@ func NewResultId(event *SysmonEvent) ResultId {
 // MitreATTCKResult represents an alert/feature
 type MitreATTCKResult struct {
 	ResultId
-	IsAlert   bool
+	Timestamp *time.Time
+	IsAlert   bool `json:"-"`
 	Context   map[string]string
 	Message   string
 	Technique *AttackPattern
@@ -34,6 +36,7 @@ type MitreATTCKResult struct {
 
 func NewMitreATTCKResult(isAlert bool, techID, message string, event *SysmonEvent) *MitreATTCKResult {
 	return &MitreATTCKResult{
+		Timestamp: event.timestamp(),
 		Context:   make(map[string]string),
 		Message:   message,
 		Technique: Techniques[techID],

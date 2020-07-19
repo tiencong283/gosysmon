@@ -9,10 +9,12 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type IOCResult struct {
 	ResultId
+	Timestamp   *time.Time
 	IOCType     int
 	Indicator   string
 	Message     string
@@ -206,18 +208,19 @@ func (filter *IOCFilter) Start() {
 
 			switch iocType {
 			case IOCIp:
-				msg = fmt.Sprintf("An connection made to the server with malicious IP '%s'", indicator)
+				msg = fmt.Sprintf("An connection made to the malicious IP '%s'", indicator)
 				externalUrl = fmt.Sprintf("https://www.virustotal.com/gui/ip-address/%s/detection", indicator)
 			case IOCDomain:
-				msg = fmt.Sprintf("DNS query to malicious domain '%s'", indicator)
+				msg = fmt.Sprintf("An DNS query to malicious domain '%s'", indicator)
 				externalUrl = fmt.Sprintf("https://www.virustotal.com/gui/domain/%s/detection", indicator)
 			case IOCHash:
 				if event.EventID == EProcessCreate {
-					msg = fmt.Sprintf("Malicious process '%s' is executed", event.get("Image"))
+					msg = fmt.Sprintf("Malicious process '%s' is executed", GetImageName(event.get("Image")))
 				}
 				externalUrl = fmt.Sprintf("https://www.virustotal.com/gui/file/%s/detection", indicator)
 			}
 			report := &IOCResult{
+				Timestamp:   event.timestamp(),
 				IOCType:     iocType,
 				Indicator:   indicator,
 				Message:     msg,

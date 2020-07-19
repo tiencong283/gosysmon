@@ -7,32 +7,38 @@ import IOCList from "../IOCList/IOCList"
 import HostList from "../HostList/HostList"
 import ActivityLogList from "../ActivityLogList/ActivityLogList"
 import Home from "../Home/Home"
+import ProcessWrapper from "../Process/Process"
 
 const navItems = [
     {
         name: 'Home',
         path: '/',
         icon: 'fi-home',
+        component: Home,
     },
     {
         name: 'Alerts',
         path: '/alerts.html',
         icon: 'fi-alert',
+        component: AlertList,
     },
     {
         name: 'IOCs',
         path: '/iocs.html',
         icon: 'fi-skull',
+        component: IOCList,
     },
     {
         name: 'Hosts',
         path: '/hosts.html',
         icon: 'fi-social-windows',
+        component: HostList,
     },
     {
         name: 'Activity Logs',
         path: '/activity-logs.html',
         icon: 'fi-clipboard-notes',
+        component: ActivityLogList,
     },
 ]
 
@@ -40,16 +46,17 @@ class App extends React.Component {
     render() {
         return (
             <BrowserRouter>
-                <div className="grid-container">
+                <div className="grid-container fluid">
                     <div className="grid-x grid-margin-x main-container">
                         <Header navItems={navItems}/>
                         <div className="cell auto main-content">
                             <Switch>
-                                <Route path="/alerts.html"><AlertList/></Route>
-                                <Route path="/iocs.html"><IOCList/></Route>
-                                <Route path="/hosts.html"><HostList/></Route>
-                                <Route path="/activity-logs.html"><ActivityLogList/></Route>
-                                <Route path="/"><Home/></Route>
+                                {
+                                    navItems.map((navItem) => (
+                                        <Route path={navItem.path} exact component={navItem.component}/>
+                                    ))
+                                }
+                                <Route path="/process"><ProcessWrapper/></Route>
                             </Switch>
                         </div>
                     </div>

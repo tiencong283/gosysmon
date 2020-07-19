@@ -30,7 +30,7 @@ class HostList extends React.Component {
                 <table className="alert-table hover unstriped">
                     <thead>
                     <tr>
-                        <th>Computer Name</th>
+                        <th>Host Name</th>
                         <th>Status</th>
                         <th>Joined At</th>
                     </tr>
