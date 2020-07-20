@@ -56,6 +56,7 @@ type Host struct {
 	FirstSeen    time.Time
 	Active       bool
 	Procs        map[string]*Process `json:"-"`
+	ProcsLock    sync.Mutex
 }
 
 // NewHost returns new instance of Host
@@ -105,6 +106,9 @@ func (host *Host) AddProcess(abandoned bool, pGuid, pid, image, cmd string) *Pro
 	}
 	proc.Sibling.Process = proc
 	proc.Children.Process = proc
+
+	host.ProcsLock.Lock()
+	defer host.ProcsLock.Unlock()
 	host.Procs[pGuid] = proc
 	return proc
 }
@@ -232,7 +236,7 @@ func (hm *HostManager) OnAlert(alert interface{}) {
 	default:
 		return
 	}
-	host := hm.GetHost(resultId.ProviderGUID)
+	host := hm.GetHost(resultId.ProviderGuid)
 	if host == nil {
 		// todo: the channel can be closed
 		hm.AlertCh <- alert
@@ -351,7 +355,7 @@ func (hm *HostManager) GetNumOfHosts() int {
 }
 
 // request handler for "/api/host"
-func (hm *HostManager) AllHostHandler(context *gin.Context) {
+func (hm *HostManager) AllHostHandler(c *gin.Context) {
 	hosts := make([]*Host, 0)
 
 	hm.HostsLock.Lock()
@@ -360,17 +364,17 @@ func (hm *HostManager) AllHostHandler(context *gin.Context) {
 	}
 	hm.HostsLock.Unlock()
 
-	context.JSON(http.StatusOK, hosts)
+	c.JSON(http.StatusOK, hosts)
 }
 
 // request handler for "/api/ioc"
-func (hm *HostManager) AllIOCHandler(context *gin.Context) {
+func (hm *HostManager) AllIOCHandler(c *gin.Context) {
 	hm.IOCsLock.Lock()
 	iocList := make([]*IOCResult, len(hm.IOCs))
 	copy(iocList, hm.IOCs)
 	hm.IOCsLock.Unlock()
 
-	context.JSON(http.StatusOK, iocList)
+	c.JSON(http.StatusOK, iocList)
 }
 
 // AlertView is the view layer for alert object
@@ -384,7 +388,7 @@ type AlertView struct {
 func (hm *HostManager) NewAlertView(alert *MitreATTCKResult) *AlertView {
 	alertView := new(AlertView)
 	alertView.MitreATTCKResult = alert
-	if host := hm.GetHost(alert.ProviderGUID); host != nil {
+	if host := hm.GetHost(alert.ProviderGuid); host != nil {
 		alertView.HostName = host.Name
 		if proc := host.GetProcess(alert.ProcessGuid); proc != nil {
 			alertView.ProcessImage = GetImageName(proc.Image)
@@ -395,7 +399,7 @@ func (hm *HostManager) NewAlertView(alert *MitreATTCKResult) *AlertView {
 }
 
 // request handler for "/api/alert"
-func (hm *HostManager) AllAlertHandler(context *gin.Context) {
+func (hm *HostManager) AllAlertHandler(c *gin.Context) {
 	hm.AlertsLock.Lock()
 	alertViews := make([]*AlertView, len(hm.Alerts))
 	for i, alert := range hm.Alerts {
@@ -403,5 +407,82 @@ func (hm *HostManager) AllAlertHandler(context *gin.Context) {
 	}
 	hm.AlertsLock.Unlock()
 
-	context.JSON(http.StatusOK, alertViews)
+	c.JSON(http.StatusOK, alertViews)
+}
+
+// ProcessView is the view layer for Process object (due to some conflict on json tags)
+type ProcessView struct {
+	Abandoned   bool // true if the process not derived from event ProcessCreate
+	ProcessGuid string
+	// process creation and termination time
+	CreatedAt    *time.Time
+	TerminatedAt *time.Time
+	// process state
+	State int
+	// process info
+	ProcessId        int
+	Image            string
+	OriginalFileName string
+	CommandLine      string
+	CurrentDirectory string
+	IntegrityLevel   string
+	// workaround for errors in client
+	MD5    string
+	SHA256 string
+	SHA1   string
+	// product information
+	FileVersion, Description, Product, Company string
+	// relationship
+	ParentPGuid string
+}
+
+func NewProcessView(proc *Process) *ProcessView {
+	return &ProcessView{
+		Abandoned:        proc.Abandoned,
+		ProcessGuid:      proc.ProcessGuid,
+		CreatedAt:        proc.CreatedAt,
+		TerminatedAt:     proc.TerminatedAt,
+		State:            proc.State,
+		ProcessId:        proc.ProcessId,
+		Image:            proc.Image,
+		OriginalFileName: proc.OriginalFileName,
+		CommandLine:      proc.CommandLine,
+		CurrentDirectory: proc.CurrentDirectory,
+		IntegrityLevel:   proc.IntegrityLevel,
+		MD5:              proc.Hashes["MD5"],
+		SHA256:           proc.Hashes["SHA256"],
+		SHA1:             proc.Hashes["SHA1"],
+		FileVersion:      proc.FileVersion,
+		Description:      proc.Description,
+		Product:          proc.Product,
+		Company:          proc.Company,
+		ParentPGuid:      proc.ParentPGuid,
+	}
+}
+
+// request handler for "/api/process" (process information)
+func (hm *HostManager) ProcessHandler(c *gin.Context) {
+	providerGuid, _ := c.GetQuery("ProviderGuid")
+	processGuid, _ := c.GetQuery("ProcessGuid")
+	if providerGuid == "" || processGuid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid parameters"})
+		return
+	}
+
+	hm.HostsLock.Lock()
+	host := hm.GetHost(providerGuid)
+	hm.HostsLock.Unlock()
+	if host == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unknown host id"})
+		return
+	}
+
+	host.ProcsLock.Lock()
+	proc := host.GetProcess(processGuid)
+	host.ProcsLock.Unlock()
+	if proc == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unknown process id"})
+		return
+	}
+	c.JSON(http.StatusOK, NewProcessView(proc))
 }

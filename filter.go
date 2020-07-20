@@ -13,13 +13,13 @@ const (
 )
 
 type ResultId struct {
-	ProviderGUID string
+	ProviderGuid string
 	ProcessGuid  string
 }
 
 func NewResultId(event *SysmonEvent) ResultId {
 	return ResultId{
-		ProviderGUID: event.ProviderGUID,
+		ProviderGuid: event.ProviderGUID,
 		ProcessGuid:  event.get("ProcessGuid"),
 	}
 }

@@ -134,7 +134,7 @@ func (conn *DBConn) SaveFeature(fea *MitreATTCKResult) error {
 		return err
 	}
 	contextJson, _ := json.Marshal(fea.Context)
-	if _, err := stmt.Exec(fea.ProviderGUID, fea.ProcessGuid, fea.Timestamp, fea.IsAlert, contextJson, fea.Message, fea.Technique.Id); err != nil {
+	if _, err := stmt.Exec(fea.ProviderGuid, fea.ProcessGuid, fea.Timestamp, fea.IsAlert, contextJson, fea.Message, fea.Technique.Id); err != nil {
 		return err
 	}
 	return nil
@@ -147,7 +147,7 @@ func (conn *DBConn) SaveIOC(ioc *IOCResult) error {
 	if err != nil {
 		return err
 	}
-	if _, err := stmt.Exec(ioc.ProviderGUID, ioc.ProcessGuid, ioc.Timestamp, ioc.IOCType, ioc.Indicator, ioc.Message, ioc.ExternalUrl); err != nil {
+	if _, err := stmt.Exec(ioc.ProviderGuid, ioc.ProcessGuid, ioc.Timestamp, ioc.IOCType, ioc.Indicator, ioc.Message, ioc.ExternalUrl); err != nil {
 		return err
 	}
 	return nil
@@ -241,7 +241,7 @@ func (conn *DBConn) GetFeaturesByProcess(providerGuid, processGuid string) ([]*M
 		var context, techID string
 		fea := &MitreATTCKResult{
 			ResultId: ResultId{
-				ProviderGUID: providerGuid,
+				ProviderGuid: providerGuid,
 				ProcessGuid:  processGuid,
 			},
 		}
@@ -271,7 +271,7 @@ func (conn *DBConn) GetAllIOCs() ([]*IOCResult, error) {
 	defer rows.Close()
 	for rows.Next() {
 		ioc := new(IOCResult)
-		if err := rows.Scan(&ioc.ProviderGUID, &ioc.ProcessGuid, &ioc.Timestamp, &ioc.IOCType, &ioc.Indicator, &ioc.Message, &ioc.ExternalUrl); err != nil {
+		if err := rows.Scan(&ioc.ProviderGuid, &ioc.ProcessGuid, &ioc.Timestamp, &ioc.IOCType, &ioc.Indicator, &ioc.Message, &ioc.ExternalUrl); err != nil {
 			return nil, err
 		}
 		iocs = append(iocs, ioc)

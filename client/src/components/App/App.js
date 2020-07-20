@@ -8,6 +8,7 @@ import HostList from "../HostList/HostList"
 import ActivityLogList from "../ActivityLogList/ActivityLogList"
 import Home from "../Home/Home"
 import ProcessWrapper from "../Process/Process"
+import About from "../About/About"
 
 const navItems = [
     {
@@ -40,6 +41,12 @@ const navItems = [
         icon: 'fi-clipboard-notes',
         component: ActivityLogList,
     },
+    {
+        name: 'About',
+        path: '/about.html',
+        icon: 'fi-info',
+        component: About,
+    },
 ]
 
 class App extends React.Component {
@@ -52,8 +59,8 @@ class App extends React.Component {
                         <div className="cell auto main-content">
                             <Switch>
                                 {
-                                    navItems.map((navItem) => (
-                                        <Route path={navItem.path} exact component={navItem.component}/>
+                                    navItems.map((navItem, index) => (
+                                        <Route key={index} path={navItem.path} exact component={navItem.component}/>
                                     ))
                                 }
                                 <Route path="/process"><ProcessWrapper/></Route>

@@ -46,7 +46,7 @@ class AlertList extends React.Component {
                                     <td><span>{alert.Timestamp}</span></td>
                                     <td><span>{alert.HostName}</span></td>
                                     <td>
-                                        <span><Link to={`/process?ProviderGUID=${alert.ProviderGUID}&ProcessGuid=${alert.ProcessGuid}`}>
+                                        <span><Link to={`/process?ProviderGuid=${alert.ProviderGuid}&ProcessGuid=${alert.ProcessGuid}`}>
                                         {alert.ProcessId} - {alert.ProcessImage}</Link></span>
                                     </td>
                                     <td><span><a href={alert.Technique.Url}>{alert.Technique.Id} - {alert.Technique.Name}</a></span></td>

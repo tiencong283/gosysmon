@@ -8,9 +8,9 @@ class Header extends React.Component {
             <div className="cell medium-2 main-sidebar">
                 <ul className="vertical menu">
                     {
-                        this.props.navItems.map(function (navItem) {
+                        this.props.navItems.map(function (navItem, index) {
                             return (
-                                <li>
+                                <li key={index}>
                                     <Link to={navItem.path}><span><i className={`${navItem.icon} main-sidebar-icon`}></i>{navItem.name}</span></Link>
                                 </li>
                             )
