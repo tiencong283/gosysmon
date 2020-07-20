@@ -192,7 +192,7 @@ func (engine *Engine) StartWebApp() {
 	apiGroup.GET("host", engine.HostManager.AllHostHandler)
 	apiGroup.GET("ioc", engine.HostManager.AllIOCHandler)
 	apiGroup.GET("alert", engine.HostManager.AllAlertHandler)
-	apiGroup.GET("process", engine.HostManager.ProcessHandler)
+	apiGroup.POST("process", engine.HostManager.ProcessHandler)
 
 	go func() {
 		if err := router.Run(endpoint); err != nil {

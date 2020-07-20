@@ -29,8 +29,13 @@ class Process extends React.Component {
 
     componentDidMount() {
         $.ajax({
-            url: `${endpoint}?ProviderGuid=${this.props.providerGuid}&ProcessGuid=${this.props.processGuid}`,
+            url: endpoint,
+            method: "POST",
             dataType: "json",
+            data: {
+                ProviderGuid: this.props.providerGuid,
+                ProcessGuid: this.props.processGuid
+            },
             success: function (data) {
                 this.setState({
                     procInfo: data,

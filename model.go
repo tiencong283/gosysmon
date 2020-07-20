@@ -462,8 +462,8 @@ func NewProcessView(proc *Process) *ProcessView {
 
 // request handler for "/api/process" (process information)
 func (hm *HostManager) ProcessHandler(c *gin.Context) {
-	providerGuid, _ := c.GetQuery("ProviderGuid")
-	processGuid, _ := c.GetQuery("ProcessGuid")
+	providerGuid := c.PostForm("ProviderGuid")
+	processGuid := c.PostForm("ProcessGuid")
 	if providerGuid == "" || processGuid == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid parameters"})
 		return
