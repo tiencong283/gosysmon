@@ -11,7 +11,8 @@ class Header extends React.Component {
                         this.props.navItems.map(function (navItem, index) {
                             return (
                                 <li key={index}>
-                                    <Link to={navItem.path}><span><i className={`${navItem.icon} main-sidebar-icon`}></i>{navItem.name}</span></Link>
+                                    <Link to={navItem.path}><span><i
+                                        className={`${navItem.icon} main-sidebar-icon`}></i>{navItem.name}</span></Link>
                                 </li>
                             )
                         })

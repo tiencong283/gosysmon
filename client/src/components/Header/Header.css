@@ -3,12 +3,15 @@
     height: 100vh;
     border-right: 1px solid silver;
 }
+
 .main-sidebar .menu {
     margin-top: 40px;
 }
+
 .main-sidebar .menu li:hover {
     border-bottom: 2px solid silver;
 }
+
 .main-sidebar-icon {
-    margin-right: 4px;
+    margin-right: 5px;
 }

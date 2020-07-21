@@ -104,7 +104,8 @@ func NewEngine(configFilePath string) (*Engine, error) {
 		return nil, err // todo: should reset to 0
 	}
 	// global transformation
-	engine.ExtractorEngine.InitDefault()
+	engine.ExtractorEngine.Register(NewRegistryExtractor())
+
 	// register Filters
 	if err := engine.FilterEngine.Register(NewRuleFilter()); err != nil {
 		return nil, err
@@ -160,6 +161,9 @@ func (engine *Engine) Start() error {
 			log.Warn(err)
 		}
 		event := &msg.Winlog
+		if err := engine.ExtractorEngine.Transform(event); err != nil {
+			log.Warn("cannot transform the event,", err)
+		}
 		engine.HostManager.EventCh <- event
 		engine.FilterEngine.Broadcast(event)
 		lastOffset = rawMsg.Offset
@@ -193,6 +197,7 @@ func (engine *Engine) StartWebApp() {
 	apiGroup.GET("ioc", engine.HostManager.AllIOCHandler)
 	apiGroup.GET("alert", engine.HostManager.AllAlertHandler)
 	apiGroup.POST("process", engine.HostManager.ProcessHandler)
+	apiGroup.POST("process-tree", engine.HostManager.ProcessTreeHandler)
 
 	go func() {
 		if err := router.Run(endpoint); err != nil {

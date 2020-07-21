@@ -34,12 +34,9 @@ func (ee *ExtractorEngine) Transform(event *SysmonEvent) error {
 	return nil
 }
 
-func (ee *ExtractorEngine) InitDefault() {
-	ee.Register(NewRegistryExtractor())
-}
-
 // extractor implementations
-type RegistryExtractor struct{}
+type RegistryExtractor struct {
+}
 
 func NewRegistryExtractor() *RegistryExtractor {
 	return new(RegistryExtractor)
@@ -60,8 +57,7 @@ func (e *RegistryExtractor) Transform(event *SysmonEvent) error {
 		tokens := strings.SplitN(regTarget, "\\", 3)
 		if len(tokens) >= 3 {
 			tokens[1] = tokens[0]
-			tokens = tokens[1:]
-			transformed := strings.Join(tokens, "\\")
+			transformed := strings.Join(tokens[1:], "\\")
 			event.set("TargetObject", transformed)
 		}
 	}

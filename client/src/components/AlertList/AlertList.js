@@ -3,6 +3,7 @@ import "./AlertList.css"
 import {Link} from "react-router-dom"
 import $ from "jquery"
 
+const title = "Alert List - GoSysmon"
 const endpoint = "/api/alert"
 
 class AlertList extends React.Component {
@@ -14,6 +15,7 @@ class AlertList extends React.Component {
     }
 
     componentDidMount() {
+        document.title = title
         $.ajax({
             url: endpoint,
             dataType: "json",
@@ -27,15 +29,15 @@ class AlertList extends React.Component {
 
     render() {
         return (
-            <div className="alert-table-container">
-                <table className="alert-table hover unstriped">
+            <div className="list-table-container">
+                <table className="list-table hover unstriped">
                     <thead>
                     <tr>
                         <th>Timestamp</th>
                         <th>Host Name</th>
                         <th>Process</th>
                         <th>Technique</th>
-                        <th>Message</th>
+                        <th>Notes</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -43,14 +45,16 @@ class AlertList extends React.Component {
                         this.state.alertList.map(function (alert) {
                             return (
                                 <tr>
-                                    <td><span>{alert.Timestamp}</span></td>
-                                    <td><span>{alert.HostName}</span></td>
-                                    <td>
-                                        <span><Link to={`/process?ProviderGuid=${alert.ProviderGuid}&ProcessGuid=${alert.ProcessGuid}`}>
-                                        {alert.ProcessId} - {alert.ProcessImage}</Link></span>
+                                    <td>{alert.Timestamp}</td>
+                                    <td>{alert.HostName}</td>
+                                    <td><Link
+                                        to={`/process?ProviderGuid=${alert.ProviderGuid}&ProcessGuid=${alert.ProcessGuid}`}>
+                                        {alert.ProcessId} - {alert.ProcessImage}</Link>
                                     </td>
-                                    <td><span><a href={alert.Technique.Url}>{alert.Technique.Id} - {alert.Technique.Name}</a></span></td>
-                                    <td><span>{alert.Message}</span></td>
+                                    <td><a
+                                        href={alert.Technique.Url}>{alert.Technique.Id} - {alert.Technique.Name}</a>
+                                    </td>
+                                    <td>{alert.Message}</td>
                                 </tr>
                             )
                         })

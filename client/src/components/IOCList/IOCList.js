@@ -1,7 +1,9 @@
 import React from "react"
 import "./IOCList.css"
 import $ from "jquery"
+import {Link} from "react-router-dom";
 
+const title = "IOC List - GoSysmon"
 const endpoint = "/api/ioc"
 const iocTypes = ["Hash", "IP", "Domain"]
 
@@ -14,6 +16,7 @@ class IOCList extends React.Component {
     }
 
     componentDidMount() {
+        document.title = title
         $.ajax({
             url: endpoint,
             dataType: "json",
@@ -27,14 +30,14 @@ class IOCList extends React.Component {
 
     render() {
         return (
-            <div className="ioc-table-container">
-                <table className="ioc-table hover unstriped">
+            <div className="list-table-container">
+                <table className="list-table hover unstriped">
                     <thead>
                     <tr>
                         <th>Timestamp</th>
                         <th>Type</th>
                         <th>Indicator</th>
-                        <th>Message</th>
+                        <th>Notes</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -42,10 +45,12 @@ class IOCList extends React.Component {
                         this.state.iocList.map(function (ioc) {
                             return (
                                 <tr>
-                                    <td><span>{ioc.Timestamp}</span></td>
-                                    <td><span>{iocTypes[ioc.IOCType]}</span></td>
+                                    <td>{ioc.Timestamp}</td>
+                                    <td>{iocTypes[ioc.IOCType]}</td>
                                     <td><a href={ioc.ExternalUrl}>{ioc.Indicator}</a></td>
-                                    <td><span>{ioc.Message}</span></td>
+                                    <td><Link
+                                        to={`/process?ProviderGuid=${ioc.ProviderGuid}&ProcessGuid=${ioc.ProcessGuid}`}>
+                                        {ioc.Message}</Link></td>
                                 </tr>
                             )
                         })

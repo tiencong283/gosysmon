@@ -2,6 +2,7 @@ import React from "react"
 import "./HostList.css"
 import $ from "jquery"
 
+const title = "Client List - GoSysmon"
 const endpoint = "/api/host"
 
 class HostList extends React.Component {
@@ -13,6 +14,7 @@ class HostList extends React.Component {
     }
 
     componentDidMount() {
+        document.title = title
         $.ajax({
             url: endpoint,
             dataType: "json",
@@ -26,8 +28,8 @@ class HostList extends React.Component {
 
     render() {
         return (
-            <div className="alert-table-container">
-                <table className="alert-table hover unstriped">
+            <div className="list-table-container">
+                <table className="list-table hover unstriped">
                     <thead>
                     <tr>
                         <th>Host Name</th>

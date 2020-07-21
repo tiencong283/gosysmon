@@ -266,7 +266,7 @@ func (hm *HostManager) OnAlert(alert interface{}) {
 				log.Warnf("cannot persist the IOC, %s\n", err)
 			}
 		}
-		log.Debug(ToJson(alert))
+		//log.Println(ToJson(alert))
 	}
 }
 
@@ -422,6 +422,7 @@ type ProcessView struct {
 	// process info
 	ProcessId        int
 	Image            string
+	ImageName        string
 	OriginalFileName string
 	CommandLine      string
 	CurrentDirectory string
@@ -432,8 +433,6 @@ type ProcessView struct {
 	SHA1   string
 	// product information
 	FileVersion, Description, Product, Company string
-	// relationship
-	ParentPGuid string
 }
 
 func NewProcessView(proc *Process) *ProcessView {
@@ -445,6 +444,7 @@ func NewProcessView(proc *Process) *ProcessView {
 		State:            proc.State,
 		ProcessId:        proc.ProcessId,
 		Image:            proc.Image,
+		ImageName:        GetImageName(proc.Image),
 		OriginalFileName: proc.OriginalFileName,
 		CommandLine:      proc.CommandLine,
 		CurrentDirectory: proc.CurrentDirectory,
@@ -456,14 +456,12 @@ func NewProcessView(proc *Process) *ProcessView {
 		Description:      proc.Description,
 		Product:          proc.Product,
 		Company:          proc.Company,
-		ParentPGuid:      proc.ParentPGuid,
 	}
 }
 
 // request handler for "/api/process" (process information)
 func (hm *HostManager) ProcessHandler(c *gin.Context) {
-	providerGuid := c.PostForm("ProviderGuid")
-	processGuid := c.PostForm("ProcessGuid")
+	providerGuid, processGuid := c.PostForm("ProviderGuid"), c.PostForm("ProcessGuid")
 	if providerGuid == "" || processGuid == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid parameters"})
 		return
@@ -485,4 +483,55 @@ func (hm *HostManager) ProcessHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, NewProcessView(proc))
+}
+
+type ProcessTree struct {
+	Nodes []*ProcessView
+	Links [][2]string
+}
+
+// request handler for "/api/process-tree" (process relationship information)
+func (hm *HostManager) ProcessTreeHandler(c *gin.Context) {
+	providerGuid, processGuid := c.PostForm("ProviderGuid"), c.PostForm("ProcessGuid")
+	if providerGuid == "" || processGuid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid parameters"})
+		return
+	}
+
+	hm.HostsLock.Lock()
+	host := hm.GetHost(providerGuid)
+	hm.HostsLock.Unlock()
+	if host == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unknown host id"})
+		return
+	}
+
+	host.ProcsLock.Lock()
+	proc := host.GetProcess(processGuid)
+	host.ProcsLock.Unlock()
+	if proc == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unknown process id"})
+		return
+	}
+	procRoot := proc
+	for ; procRoot.Parent != nil; procRoot = procRoot.Parent { // traverse to its root
+	}
+	procTree := &ProcessTree{
+		Nodes: make([]*ProcessView, 0),
+		Links: make([][2]string, 0),
+	}
+	queue := []*Process{procRoot}
+
+	var curProc *Process
+	for len(queue) > 0 {
+		curProc, queue = queue[0], queue[1:]
+		procTree.Nodes = append(procTree.Nodes, NewProcessView(curProc))
+
+		head := &curProc.Children
+		for cur := head.Next; cur != nil && cur != head; cur = cur.Next {
+			procTree.Links = append(procTree.Links, [2]string{curProc.ProcessGuid, cur.ProcessGuid})
+			queue = append(queue, cur.Process)
+		}
+	}
+	c.JSON(http.StatusOK, procTree)
 }

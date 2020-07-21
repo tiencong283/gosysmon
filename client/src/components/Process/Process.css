@@ -1,0 +1,23 @@
+.process-header ul {
+    display: flex;
+    list-style-type: none;
+}
+
+.process-header li {
+    margin-right: 32px;
+}
+
+.process-header img {
+    height: 22px;
+    margin-right: 4px;
+}
+
+.process-content {
+    padding-top: 40px;
+}
+
+.process-content .pinfo-key{
+    display: inline-block;
+    min-width: 180px;
+    font-weight: bold;
+}
