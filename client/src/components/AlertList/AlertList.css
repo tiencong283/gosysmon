@@ -11,10 +11,19 @@
     overflow: scroll;
 }
 
+#alert-context {
+    display: none;
+}
+
 .alert-context-header a {
     padding-left: 8px;
 }
 
 .alert-context-content {
     margin-top: 20px;
+}
+
+.clickable:hover {
+    cursor: pointer;
+    text-decoration: underline;
 }

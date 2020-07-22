@@ -12,6 +12,7 @@ import ActivityLogList from "../ActivityLogList/ActivityLogList"
 import About from "../About/About"
 import ProcessWrapper from "../Process/Process"
 
+// main navigation
 const navItems = [
     {
         name: 'Home',
@@ -52,16 +53,8 @@ const navItems = [
 ]
 
 class App extends React.Component {
-    constructor(props) {
-        super(props)
-        this.state = {
-            activeIndex: 1
-        }
-    }
-
     render() {
         return (
-
             <BrowserRouter>
                 <div className="grid-container fluid">
                     <div className="grid-x grid-margin-x main-container">

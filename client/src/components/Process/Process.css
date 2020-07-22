@@ -12,11 +12,15 @@
     margin-right: 4px;
 }
 
+.process-header .process-tab-active {
+    text-decoration: underline;
+}
+
 .process-content {
     padding-top: 40px;
 }
 
-.process-content .pinfo-key{
+.process-content .pinfo-key {
     display: inline-block;
     min-width: 180px;
     font-weight: bold;

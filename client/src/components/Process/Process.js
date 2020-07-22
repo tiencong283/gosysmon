@@ -23,7 +23,7 @@ const processAPI = "/api/process"
 const processRelAPI = "/api/process-tree"
 
 // A custom hook that builds on useLocation to parse
-// the query string for you.
+// the query string for you. https://reactrouter.com/web/example/query-parameters
 function useQuery() {
     return new URLSearchParams(useLocation().search)
 }
@@ -34,6 +34,29 @@ export default function ProcessWrapper() {
         <Process providerGuid={query.get("ProviderGuid")} processGuid={query.get("ProcessGuid")}/>
     )
 }
+
+const procNavItems = [
+    {
+        tabSegment: "#execution-details",
+        logoSrc: ProcessTabLogo,
+        name: "Execution"
+    },
+    {
+        tabSegment: "#file-defails",
+        logoSrc: FileTabLogo,
+        name: "File"
+    },
+    {
+        tabSegment: "#activity",
+        logoSrc: ActTabLogo,
+        name: "Activities"
+    },
+    {
+        tabSegment: "#relationship",
+        logoSrc: RelationshipTabLogo,
+        name: "Relationship"
+    }
+]
 
 class Process extends React.Component {
     constructor(props) {
@@ -47,6 +70,7 @@ class Process extends React.Component {
     }
 
     handleSwitchTab(e) {
+        e.preventDefault()
         this.setState({
             tabSegment: e.currentTarget.getAttribute("href"),
         })
@@ -54,10 +78,10 @@ class Process extends React.Component {
 
     componentDidMount() {
         document.title = title
+
         let formData = new FormData()
         formData.set("ProviderGuid", this.props.providerGuid)
         formData.set("ProcessGuid", this.props.processGuid)
-        console.log(this.state.tabSegment)
 
         axios({
             method: 'POST',
@@ -86,23 +110,26 @@ class Process extends React.Component {
         })
     }
 
+    renderProcNavItems() {
+        return procNavItems.map((navItem, idx) => {
+            let active = navItem.tabSegment === this.state.tabSegment ? "process-tab-active" : ""
+            return (
+                <li className={active}><a href={navItem.tabSegment} onClick={this.handleSwitchTab}><img
+                    src={navItem.logoSrc}
+                    alt=""/><span>{navItem.name}</span></a>
+                </li>
+            )
+        })
+    }
+
     render() {
         return (
             <div className="process-wrapper">
                 <header className="process-header">
                     <ul>
-                        <li><a href="#execution-details" onClick={this.handleSwitchTab}><img src={ProcessTabLogo}
-                                                                                             alt=""/><span>Execution</span></a>
-                        </li>
-                        <li><a href="#file-defails" onClick={this.handleSwitchTab}><img src={FileTabLogo}
-                                                                                        alt=""/><span>File</span></a>
-                        </li>
-                        <li><a href="#activity" onClick={this.handleSwitchTab}><img src={ActTabLogo}
-                                                                                    alt=""/><span>Activities</span></a>
-                        </li>
-                        <li><a href="#relationship" onClick={this.handleSwitchTab}><img src={RelationshipTabLogo}
-                                                                                        alt=""/><span>Relationship</span></a>
-                        </li>
+                        {
+                            this.renderProcNavItems()
+                        }
                     </ul>
                 </header>
                 <div className="process-content">

@@ -18,15 +18,14 @@ class AlertList extends React.Component {
         super(props)
         this.state = {
             alertList: [],
-            alertIdx: -1,
+            alert: {},
         }
-        this.handleOpenSideBar = this.handleOpenSideBar.bind(this)
     }
 
-    handleOpenSideBar(event) {
+    handleOpenSideBar(idx) {
         $("#alert-context").toggle()
         this.setState({
-            alertIdx: parseInt(event.currentTarget.getAttribute("id").slice("alert-".length)),
+            alert: this.state.alertList[idx],
         })
     }
 
@@ -43,11 +42,30 @@ class AlertList extends React.Component {
         })
     }
 
+    getProcessUrl(alert) {
+        return `/process?ProviderGuid=${alert.ProviderGuid}&ProcessGuid=${alert.ProcessGuid}`
+    }
+
+    renderAlerts() {
+        return this.state.alertList.map((alert, idx) => {
+            return (
+                <tr>
+                    <td>{alert.Timestamp}</td>
+                    <td>{alert.HostName}</td>
+                    <td><Link to={this.getProcessUrl(alert)}>{alert.ProcessId} - {alert.ProcessImage}</Link></td>
+                    <td><span className="clickable"
+                              onClick={this.handleOpenSideBar.bind(this, idx)}>{alert.Technique.Id} - {alert.Technique.Name}</span>
+                    </td>
+                    <td>{alert.Message}</td>
+                </tr>
+            )
+        })
+    }
+
     render() {
-        let handleOpenSideBar = this.handleOpenSideBar
         return (
             <div className="list-table-container">
-                <SideNav alert={this.state.alertList[this.state.alertIdx]}/>
+                <SideNav alert={this.state.alert}/>
                 <table className="list-table">
                     <thead>
                     <tr>
@@ -60,22 +78,7 @@ class AlertList extends React.Component {
                     </thead>
                     <tbody>
                     {
-                        this.state.alertList.map(function (alert, index) {
-                            return (
-                                <tr>
-                                    <td>{alert.Timestamp}</td>
-                                    <td>{alert.HostName}</td>
-                                    <td><Link
-                                        to={`/process?ProviderGuid=${alert.ProviderGuid}&ProcessGuid=${alert.ProcessGuid}`}>
-                                        {alert.ProcessId} - {alert.ProcessImage}</Link>
-                                    </td>
-                                    <td><a id={`alert-${index}`} href="#"
-                                           onClick={handleOpenSideBar}>{alert.Technique.Id} - {alert.Technique.Name}</a>
-                                    </td>
-                                    <td>{alert.Message}</td>
-                                </tr>
-                            )
-                        })
+                        this.renderAlerts()
                     }
                     </tbody>
                 </table>
@@ -85,11 +88,22 @@ class AlertList extends React.Component {
 }
 
 class SideNav extends React.Component {
-    render() {
-        if (!this.props.alert) {
-            return <span></span>
-        }
+    renderHeader() {
         let alert = this.props.alert
+        if ($.isEmptyObject(alert)) {
+            return
+        }
+        return (
+            <div className="alert-context-header"><a href={alert.Technique.Url}>Mitre
+                ATT&CK <i className="fa fa-external-link"/></a></div>
+        )
+    }
+
+    renderPropList() {
+        let alert = this.props.alert
+        if ($.isEmptyObject(alert)) {
+            return
+        }
         let properties = Object.keys(alert.Context).map(function (key) {
             return [key, alert.Context[key]]
         })
@@ -102,10 +116,22 @@ class SideNav extends React.Component {
             }
             return 0
         })
+        return properties.map(function (arr) {
+            return (
+                <tr>
+                    <td>{arr[0]}</td>
+                    <td>{arr[1]}</td>
+                </tr>
+            )
+        })
+    }
+
+    render() {
         return (
             <div id="alert-context" className="sidenav">
-                <div className="alert-context-header"><a href={alert.Technique.Url}>Mitre
-                    ATT&CK <i className="fa fa-external-link"></i></a></div>
+                {
+                    this.renderHeader()
+                }
                 <div className="alert-context-content">
                     <table>
                         <thead>
@@ -114,14 +140,7 @@ class SideNav extends React.Component {
                         </thead>
                         <tbody>
                         {
-                            properties.map(function (arr) {
-                                return (
-                                    <tr>
-                                        <td>{arr[0]}</td>
-                                        <td>{arr[1]}</td>
-                                    </tr>
-                                )
-                            })
+                            this.renderPropList()
                         }
                         </tbody>
                     </table>
