@@ -29,7 +29,7 @@ type MitreATTCKResult struct {
 	ResultId
 	Timestamp *time.Time
 	IsAlert   bool `json:"-"`
-	Context   map[string]string
+	Context   map[string]interface{}
 	Message   string
 	Technique *AttackPattern
 }
@@ -37,7 +37,7 @@ type MitreATTCKResult struct {
 func NewMitreATTCKResult(isAlert bool, techID, message string, event *SysmonEvent) *MitreATTCKResult {
 	return &MitreATTCKResult{
 		Timestamp: event.timestamp(),
-		Context:   make(map[string]string),
+		Context:   make(map[string]interface{}),
 		Message:   message,
 		Technique: Techniques[techID],
 		ResultId:  NewResultId(event),
@@ -49,6 +49,10 @@ func (r *MitreATTCKResult) MergeContext(m map[string]string) {
 	for k, v := range m {
 		r.Context[k] = v
 	}
+}
+
+func (r *MitreATTCKResult) AddContext(key string, val interface{}) {
+	r.Context[key] = val
 }
 
 // ModelFilter is the filter that builds models of detector for abnormal detection

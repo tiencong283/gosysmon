@@ -266,7 +266,6 @@ func (hm *HostManager) OnAlert(alert interface{}) {
 				log.Warnf("cannot persist the IOC, %s\n", err)
 			}
 		}
-		//log.Println(ToJson(alert))
 	}
 }
 

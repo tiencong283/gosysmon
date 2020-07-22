@@ -1,7 +1,6 @@
 import React from "react"
 import "./Process.css"
 import {useLocation} from "react-router-dom"
-import $ from "jquery"
 
 import ProcessTabLogo from "./gear.svg"
 import FileTabLogo from "./file-earmark-binary.svg"
@@ -15,6 +14,9 @@ require('highcharts/modules/sankey')(Highcharts)
 require('highcharts/modules/organization')(Highcharts)
 require('highcharts/modules/exporting')(Highcharts)
 require('highcharts/modules/accessibility')(Highcharts)
+
+const axios = require('axios')
+axios.defaults.headers.post['Content-Type'] = 'application/x-www-form-urlencoded'
 
 const title = "Process Information - Gosysmon"
 const processAPI = "/api/process"
@@ -45,42 +47,42 @@ class Process extends React.Component {
     }
 
     handleSwitchTab(e) {
-        let segment = e.currentTarget.getAttribute("href")
-        if (segment === "#relationship") {
-            $.post({
-                url: processRelAPI,
-                async: false,
-                dataType: "json",
-                data: {
-                    ProviderGuid: this.props.providerGuid,
-                    ProcessGuid: this.props.processGuid
-                },
-                success: function (data) {
-                    this.setState({
-                        procRel: data,
-                    })
-                }.bind(this),
-            })
-        }
         this.setState({
-            tabSegment: segment
+            tabSegment: e.currentTarget.getAttribute("href"),
         })
     }
 
     componentDidMount() {
         document.title = title
-        $.post({
+        let formData = new FormData()
+        formData.set("ProviderGuid", this.props.providerGuid)
+        formData.set("ProcessGuid", this.props.processGuid)
+        console.log(this.state.tabSegment)
+
+        axios({
+            method: 'POST',
+            url: processRelAPI,
+            data: formData,
+            headers: {'Content-Type': 'multipart/form-data'}
+        }).then(function (response) {
+            this.setState({
+                procRel: response.data,
+            })
+        }.bind(this)).catch(function (error) {
+            console.log(error)
+        })
+
+        axios({
+            method: 'POST',
             url: processAPI,
-            dataType: "json",
-            data: {
-                ProviderGuid: this.props.providerGuid,
-                ProcessGuid: this.props.processGuid
-            },
-            success: function (data) {
-                this.setState({
-                    proc: data,
-                })
-            }.bind(this),
+            data: formData,
+            headers: {'Content-Type': 'multipart/form-data'}
+        }).then(function (response) {
+            this.setState({
+                proc: response.data,
+            })
+        }.bind(this)).catch(function (error) {
+            console.log(error)
         })
     }
 
@@ -176,9 +178,6 @@ class ProcessActivities extends React.Component {
 
 class ProcessRel extends React.Component {
     render() {
-        let procTree = this.props.procRel
-        console.log(procTree)
-
         const options = {
             chart: {
                 inverted: true,
@@ -190,8 +189,8 @@ class ProcessRel extends React.Component {
                 type: 'organization',
                 name: '',
                 keys: ['from', 'to'],
-                data: procTree.Links,
-                nodes: procTree.Nodes.map(function (node) {
+                data: this.props.procRel.Links,
+                nodes: this.props.procRel.Nodes.map(function (node) {
                     return {
                         id: node.ProcessGuid,
                         name: node.ImageName,

@@ -172,6 +172,9 @@ func (mf *RuleFilter) Start() {
 			}
 			alert := NewMitreATTCKResult(isAlert, labels["technique_id"], "", event)
 			alert.MergeContext(event.EventData)
+			alert.AddContext("EventID", event.EventID)
+			alert.AddContext("RecordID", event.RecordID)
+			alert.AddContext("RuleName", mf.SchemaDef.EventIDToRuleName[event.EventID])
 			mf.AlertCh <- alert
 		}
 	}
