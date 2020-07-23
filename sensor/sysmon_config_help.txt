@@ -58,7 +58,7 @@ Configuration entries include the following:
                                   which file deletes will be preserved.
   CopyOnDeleteExtensions Strings  Extensions for files that are preserved on
                                   delete.
-  CopyOnDeleteProcesses  Strings  Process name(s) for which file deletes will
+  CopyOnDeleteProcesses  Strings  PaginationNav name(s) for which file deletes will
                                   be preserved.
   DnsLookup              Boolean  Controls reverse DNS lookup.
                                   Default: True
@@ -73,15 +73,15 @@ of them. You can filter the output on the host reducing the data to collect.
 Each event has its own filter tag under EventFiltering:
 
 Id     Tag                  Event
-1      ProcessCreate        Process Create
+1      ProcessCreate        PaginationNav Create
 2      FileCreateTime       File creation time changed
 3      NetworkConnect       Network connection detected
-5      ProcessTerminate     Process terminated
+5      ProcessTerminate     PaginationNav terminated
 6      DriverLoad           Driver loaded
 7      ImageLoad            Image loaded
 8      CreateRemoteThread   CreateRemoteThread detected
 9      RawAccessRead        RawAccessRead detected
-10     ProcessAccess        Process accessed
+10     ProcessAccess        PaginationNav accessed
 11     FileCreate           File created
 12     RegistryEvent        Registry object added or deleted
 13     RegistryEvent        Registry value set

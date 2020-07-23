@@ -8,7 +8,7 @@ CREATE TABLE Hosts
     Active       BOOL DEFAULT TRUE
 );
 
--- Process table
+-- PaginationNav table
 CREATE TABLE Processes
 (
     Id           SERIAL,

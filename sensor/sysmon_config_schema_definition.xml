@@ -36,7 +36,7 @@
             <data name="ID" inType="win:UnicodeString" outType="xs:string" />
             <data name="Description" inType="win:UnicodeString" outType="xs:string" />
         </event>
-        <event name="SYSMON_CREATE_PROCESS" value="1" level="Informational" template="Process Create" rulename="ProcessCreate" ruledefault="include" version="5">
+        <event name="SYSMON_CREATE_PROCESS" value="1" level="Informational" template="PaginationNav Create" rulename="ProcessCreate" ruledefault="include" version="5">
             <data name="RuleName" inType="win:UnicodeString" outType="xs:string" />
             <data name="UtcTime" inType="win:UnicodeString" outType="xs:string" />
             <data name="ProcessGuid" inType="win:GUID" />
@@ -96,7 +96,7 @@
             <data name="Version" inType="win:UnicodeString" outType="xs:string" />
             <data name="SchemaVersion" inType="win:UnicodeString" outType="xs:string" />
         </event>
-        <event name="SYSMON_PROCESS_TERMINATE" value="5" level="Informational" template="Process terminated" rulename="ProcessTerminate" ruledefault="include" version="3">
+        <event name="SYSMON_PROCESS_TERMINATE" value="5" level="Informational" template="PaginationNav terminated" rulename="ProcessTerminate" ruledefault="include" version="3">
             <data name="RuleName" inType="win:UnicodeString" outType="xs:string" />
             <data name="UtcTime" inType="win:UnicodeString" outType="xs:string" />
             <data name="ProcessGuid" inType="win:GUID" />
@@ -151,7 +151,7 @@
             <data name="Image" inType="win:UnicodeString" outType="xs:string" />
             <data name="Device" inType="win:UnicodeString" outType="xs:string" />
         </event>
-        <event name="SYSMON_ACCESS_PROCESS" value="10" level="Informational" template="Process accessed" rulename="ProcessAccess" version="3">
+        <event name="SYSMON_ACCESS_PROCESS" value="10" level="Informational" template="PaginationNav accessed" rulename="ProcessAccess" version="3">
             <data name="RuleName" inType="win:UnicodeString" outType="xs:string" />
             <data name="UtcTime" inType="win:UnicodeString" outType="xs:string" />
             <data name="SourceProcessGUID" inType="win:GUID" />

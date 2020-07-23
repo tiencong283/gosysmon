@@ -2,6 +2,7 @@ import React from "react"
 import "./AlertList.css"
 import {Link} from "react-router-dom"
 import $ from "jquery"
+import PaginationNav from "../PaginationNav/PaginationNav"
 
 const title = "Alert List - GoSysmon"
 const endpoint = "/api/alert"
@@ -17,15 +18,64 @@ class AlertList extends React.Component {
     constructor(props) {
         super(props)
         this.state = {
+            viewAlerts: [],
             alertList: [],
             alert: {},
+            paging: {   // pagination
+                currentPageIdx: 0,
+                elementsPerPage: 20,
+                numOfPages: 0,
+            }
         }
+        this.handlePrevious = this.handlePrevious.bind(this)
+        this.handleNext = this.handleNext.bind(this)
     }
 
     handleOpenSideBar(idx) {
         $("#alert-context").toggle()
         this.setState({
             alert: this.state.alertList[idx],
+        })
+    }
+
+    // pagination
+    getViewElements(pageIdx) {
+        return this.getViewElementsFrom(pageIdx, this.state.alertList)
+    }
+
+    getViewElementsFrom(pageIdx, alertList) {
+        let startIdx = pageIdx * this.state.paging.elementsPerPage
+        let endIdx = (pageIdx + 1) * this.state.paging.elementsPerPage
+        return alertList.slice(startIdx, endIdx)
+    }
+
+    handlePrevious(event) {
+        event.preventDefault()
+        let newPageIdx = this.state.paging.currentPageIdx - 1
+        if (newPageIdx < 0) {
+            newPageIdx = 0
+        }
+        this.setState({
+            viewAlerts: this.getViewElements(newPageIdx),
+            paging: {
+                ...this.state.paging,
+                currentPageIdx: newPageIdx
+            }
+        })
+    }
+
+    handleNext(event) {
+        event.preventDefault()
+        let newPageIdx = this.state.paging.currentPageIdx + 1
+        if (newPageIdx >= this.state.paging.numOfPages) {
+            newPageIdx = this.state.paging.numOfPages - 1
+        }
+        this.setState({
+            viewAlerts: this.getViewElements(newPageIdx),
+            paging: {
+                ...this.state.paging,
+                currentPageIdx: newPageIdx
+            }
         })
     }
 
@@ -36,7 +86,12 @@ class AlertList extends React.Component {
             dataType: "json",
             success: function (data) {
                 this.setState({
+                    viewAlerts: this.getViewElementsFrom(this.state.paging.currentPageIdx, data),
                     alertList: data,
+                    paging: {
+                        ...this.state.paging,
+                        numOfPages: Math.floor(data.length / this.state.paging.elementsPerPage)
+                    }
                 })
             }.bind(this),
         })
@@ -47,7 +102,7 @@ class AlertList extends React.Component {
     }
 
     renderAlerts() {
-        return this.state.alertList.map((alert, idx) => {
+        return this.state.viewAlerts.map((alert, idx) => {
             return (
                 <tr>
                     <td>{alert.Timestamp}</td>
@@ -65,6 +120,8 @@ class AlertList extends React.Component {
     render() {
         return (
             <div className="list-table-container">
+                <PaginationNav paging={this.state.paging} handlePrevious={this.handlePrevious}
+                               handleNext={this.handleNext}/>
                 <SideNav alert={this.state.alert}/>
                 <table className="list-table">
                     <thead>
@@ -135,8 +192,10 @@ class SideNav extends React.Component {
                 <div className="alert-context-content">
                     <table>
                         <thead>
-                        <th width="100">Property</th>
-                        <th>Value</th>
+                        <tr>
+                            <th width="100">Property</th>
+                            <th>Value</th>
+                        </tr>
                         </thead>
                         <tbody>
                         {
