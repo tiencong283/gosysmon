@@ -8,19 +8,19 @@ import (
 )
 
 const (
-	EventChBufSize = 1000000
+	EventChBufSize = 100000
 	AlertChBufSize = 1000
 )
 
 type ResultId struct {
-	ProviderGuid string
-	ProcessGuid  string
+	HostId      string
+	ProcessGuid string
 }
 
-func NewResultId(event *SysmonEvent) ResultId {
+func NewResultId(msg *Message) ResultId {
 	return ResultId{
-		ProviderGuid: event.ProviderGUID,
-		ProcessGuid:  event.get("ProcessGuid"),
+		HostId:      msg.Agent.ID,
+		ProcessGuid: msg.Event.get("ProcessGuid"),
 	}
 }
 
@@ -34,13 +34,13 @@ type MitreATTCKResult struct {
 	Technique *AttackPattern
 }
 
-func NewMitreATTCKResult(isAlert bool, techID, message string, event *SysmonEvent) *MitreATTCKResult {
+func NewMitreATTCKResult(isAlert bool, techID, message string, msg *Message) *MitreATTCKResult {
 	return &MitreATTCKResult{
-		Timestamp: event.timestamp(),
+		Timestamp: msg.Event.timestamp(),
 		Context:   make(map[string]interface{}),
 		Message:   message,
 		Technique: Techniques[techID],
-		ResultId:  NewResultId(event),
+		ResultId:  NewResultId(msg),
 		IsAlert:   isAlert,
 	}
 }
@@ -57,9 +57,9 @@ func (r *MitreATTCKResult) AddContext(key string, val interface{}) {
 
 // ModelFilter is the filter that builds models of detector for abnormal detection
 type MitreATTCKFilterer interface {
-	IsSupported(event *SysmonEvent) bool
+	IsSupported(event *Message) bool
 	Init() error
-	EventCh() chan *SysmonEvent
+	MessageCh() chan *Message
 	StateCh() chan int
 	SetAlertCh(alertCh chan interface{})
 	Start()
@@ -67,19 +67,19 @@ type MitreATTCKFilterer interface {
 
 // CommonFilterer is the common properties of MitreATTCKFilterers
 type CommonFilterer struct {
-	State   chan int
-	Name    string
-	eventCh chan *SysmonEvent
-	AlertCh chan interface{}
-	logger  *log.Entry
+	State     chan int
+	Name      string
+	messageCh chan *Message
+	AlertCh   chan interface{}
+	logger    *log.Entry
 }
 
 func NewCommonFilterer(name string) CommonFilterer {
 	return CommonFilterer{
-		State:   make(chan int),
-		Name:    name,
-		eventCh: make(chan *SysmonEvent, EventChBufSize),
-		logger:  log.WithField("FilterId", name),
+		State:     make(chan int),
+		Name:      name,
+		messageCh: make(chan *Message, EventChBufSize),
+		logger:    log.WithField("FilterId", name),
 	}
 }
 

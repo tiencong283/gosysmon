@@ -29,10 +29,10 @@ func (fe *FilterEngine) Register(newFilter MitreATTCKFilterer) error {
 }
 
 // Broadcast send an event to all Filters for processing
-func (fe *FilterEngine) Broadcast(event *SysmonEvent) {
+func (fe *FilterEngine) Broadcast(msg *Message) {
 	for _, filter := range fe.Filters {
-		if filter.IsSupported(event) {
-			filter.EventCh() <- event
+		if filter.IsSupported(msg) {
+			filter.MessageCh() <- msg
 		}
 	}
 }
@@ -47,7 +47,7 @@ func (fe *FilterEngine) Start() {
 // CloseAll closes all Filters
 func (fe *FilterEngine) CloseAll() {
 	for _, filter := range fe.Filters {
-		close(filter.EventCh())
+		close(filter.MessageCh())
 		<-filter.StateCh()
 	}
 	close(fe.AlertCh)
@@ -160,12 +160,11 @@ func (engine *Engine) Start() error {
 		if err := json.Unmarshal(rawMsg.Value, &msg); err != nil {
 			log.Warn(err)
 		}
-		event := &msg.Winlog
-		if err := engine.ExtractorEngine.Transform(event); err != nil {
+		if err := engine.ExtractorEngine.Transform(msg); err != nil {
 			log.Warn("cannot transform the event,", err)
 		}
-		engine.HostManager.EventCh <- event
-		engine.FilterEngine.Broadcast(event)
+		engine.HostManager.MessageCh <- msg
+		engine.FilterEngine.Broadcast(msg)
 		lastOffset = rawMsg.Offset
 		msg = new(Message)
 	}
@@ -174,7 +173,7 @@ func (engine *Engine) Start() error {
 			log.Warnf("cannot save kafka offset, %s", err)
 		}
 	}
-	close(engine.HostManager.EventCh)
+	close(engine.HostManager.MessageCh)
 	engine.FilterEngine.CloseAll()
 
 	// wait until exit

@@ -1,0 +1,12 @@
+[Unit]
+Description=Redis
+Documentation=https://redis.io/documentation
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/home/gosysmon/redis-6.0.6/src/redis-server /home/gosysmon/redis-6.0.6/redis.conf
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

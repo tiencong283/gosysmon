@@ -1,0 +1,14 @@
+[Unit]
+Description=Apache ZooKeeper
+Documentation=https://zookeeper.apache.org/doc/r3.6.1/index.html
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/home/gosysmon/kafka/bin/zookeeper-server-start.sh /home/gosysmon/kafka/config/zookeeper.properties
+ExecStop=/home/gosysmon/kafka/bin/zookeeper-server-stop.sh
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+Alias=zookeeper-server.service

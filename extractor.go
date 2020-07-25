@@ -5,8 +5,8 @@ import (
 )
 
 type Extractorer interface {
-	IsSupported(event *SysmonEvent) bool
-	Transform(event *SysmonEvent) error
+	IsSupported(msg *Message) bool
+	Transform(msg *Message) error
 }
 
 type ExtractorEngine struct {
@@ -23,10 +23,10 @@ func (ee *ExtractorEngine) Register(extractor Extractorer) {
 	ee.extractors = append(ee.extractors, extractor)
 }
 
-func (ee *ExtractorEngine) Transform(event *SysmonEvent) error {
+func (ee *ExtractorEngine) Transform(msg *Message) error {
 	for _, e := range ee.extractors {
-		if e.IsSupported(event) {
-			if err := e.Transform(event); err != nil {
+		if e.IsSupported(msg) {
+			if err := e.Transform(msg); err != nil {
 				return err
 			}
 		}
@@ -42,23 +42,23 @@ func NewRegistryExtractor() *RegistryExtractor {
 	return new(RegistryExtractor)
 }
 
-func (e *RegistryExtractor) IsSupported(event *SysmonEvent) bool {
-	switch event.EventID {
+func (e *RegistryExtractor) IsSupported(msg *Message) bool {
+	switch msg.Event.EventID {
 	case ERegistryEventAdd, ERegistryEventSet, ERegistryEventRename:
 		return true
 	}
 	return false
 }
 
-func (e *RegistryExtractor) Transform(event *SysmonEvent) error {
-	regTarget := event.get("TargetObject")
+func (e *RegistryExtractor) Transform(msg *Message) error {
+	regTarget := msg.Event.get("TargetObject")
 
 	if strings.HasPrefix(regTarget, "HKU\\") {
 		tokens := strings.SplitN(regTarget, "\\", 3)
 		if len(tokens) >= 3 {
 			tokens[1] = tokens[0]
 			transformed := strings.Join(tokens[1:], "\\")
-			event.set("TargetObject", transformed)
+			msg.Event.set("TargetObject", transformed)
 		}
 	}
 	return nil

@@ -6,7 +6,6 @@ import PaginationNav from "../PaginationNav/PaginationNav";
 
 const title = "IOC List - GoSysmon"
 const endpoint = "/api/ioc"
-const iocTypes = ["Hash", "IP", "Domain"]
 
 class IOCList extends React.Component {
     constructor(props) {
@@ -105,11 +104,9 @@ class IOCList extends React.Component {
                             return (
                                 <tr>
                                     <td>{ioc.Timestamp}</td>
-                                    <td>{iocTypes[ioc.IOCType]}</td>
+                                    <td>{ioc.IOCType}</td>
                                     <td><a href={ioc.ExternalUrl}>{ioc.Indicator}</a></td>
-                                    <td><Link
-                                        to={`/process?ProviderGuid=${ioc.ProviderGuid}&ProcessGuid=${ioc.ProcessGuid}`}>
-                                        {ioc.Message}</Link></td>
+                                    <td><Link to={ioc.ProcRefUrl}>{ioc.Message}</Link></td>
                                 </tr>
                             )
                         })

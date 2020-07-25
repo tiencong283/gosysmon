@@ -83,8 +83,8 @@ func NewRuleFilter() *RuleFilter {
 	}
 }
 
-func (mf *RuleFilter) IsSupported(event *SysmonEvent) bool {
-	return event.isProcessEvent()
+func (mf *RuleFilter) IsSupported(msg *Message) bool {
+	return msg.Event.isProcessEvent()
 }
 
 // Init loads rule's schema definition and rules
@@ -151,8 +151,8 @@ func (mf *RuleFilter) Init() error {
 	return nil
 }
 
-func (mf *RuleFilter) EventCh() chan *SysmonEvent {
-	return mf.eventCh
+func (mf *RuleFilter) MessageCh() chan *Message {
+	return mf.messageCh
 }
 
 func (mf *RuleFilter) StateCh() chan int {
@@ -164,13 +164,14 @@ func (mf *RuleFilter) SetAlertCh(alertCh chan interface{}) {
 }
 
 func (mf *RuleFilter) Start() {
-	for event := range mf.eventCh {
+	for msg := range mf.messageCh {
+		event := msg.Event
 		if labels := mf.GetLabels(event); len(labels) > 0 {
 			isAlert := true
 			if labels["is_alert"] != "" {
 				isAlert, _ = strconv.ParseBool(labels["is_alert"])
 			}
-			alert := NewMitreATTCKResult(isAlert, labels["technique_id"], "", event)
+			alert := NewMitreATTCKResult(isAlert, labels["technique_id"], "", msg)
 			alert.MergeContext(event.EventData)
 			alert.AddContext("EventID", event.EventID)
 			alert.AddContext("RecordID", event.RecordID)

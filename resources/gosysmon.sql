@@ -1,19 +1,19 @@
 -- Host table
 CREATE TABLE Hosts
 (
-    Id           SERIAL,
-    ProviderGuid VARCHAR(64) PRIMARY KEY,
-    Name         VARCHAR(64) NOT NULL,
-    FirstSeen    Timestamp   NOT NULL,
-    Active       BOOL DEFAULT TRUE
+    Id        SERIAL,
+    HostId    VARCHAR(64) PRIMARY KEY,
+    Name      VARCHAR(64) NOT NULL,
+    FirstSeen Timestamp   NOT NULL,
+    Active    BOOL DEFAULT TRUE
 );
 
--- PaginationNav table
+-- Processes table
 CREATE TABLE Processes
 (
     Id           SERIAL,
-    ProviderGuid VARCHAR(64) REFERENCES Hosts (ProviderGuid),
-    ProcessGuid  VARCHAR(64) PRIMARY KEY,
+    HostId       VARCHAR(64) REFERENCES Hosts (HostId),
+    ProcessGuid  VARCHAR(64),
     CreatedAt    Timestamp,
     TerminatedAt Timestamp,
     State        int  NOT NULL,
@@ -35,7 +35,8 @@ CREATE TABLE Processes
 --     Product           TEXT,
 --     Company           TEXT,
 
-    PProcessGuid VARCHAR(64)
+    PProcessGuid VARCHAR(64),
+    PRIMARY KEY (HostId, ProcessGuid)
 );
 
 -- Feature table
@@ -43,12 +44,14 @@ CREATE TABLE Features
 (
     Id          SERIAL PRIMARY KEY,
     Timestamp   Timestamp,
-    ProviderGuid VARCHAR(64) REFERENCES Hosts (ProviderGuid),
-    ProcessGuid VARCHAR(64) REFERENCES Processes (ProcessGuid),
+    HostId      VARCHAR(64),
+    ProcessGuid VARCHAR(64),
     IsAlert     BOOL DEFAULT TRUE,
     Context     TEXT NOT NULL,
     Message     TEXT NOT NULL,
-    TechniqueId TEXT NOT NULL
+    TechniqueId TEXT NOT NULL,
+    FOREIGN KEY (HostId, ProcessGuid)
+        REFERENCES Processes (HostId, ProcessGuid)
 );
 
 -- IOC table
@@ -56,12 +59,14 @@ CREATE TABLE IOCs
 (
     Id          SERIAL PRIMARY KEY,
     Timestamp   Timestamp,
-    ProviderGuid VARCHAR(64) REFERENCES Hosts (ProviderGuid),
-    ProcessGuid VARCHAR(64) REFERENCES Processes (ProcessGuid),
+    HostId      VARCHAR(64),
+    ProcessGuid VARCHAR(64),
     IOCType     INT  NOT NULL,
     Indicator   TEXT NOT NULL,
     Message     TEXT NOT NULL,
-    ExternalUrl TEXT NOT NULL
+    ExternalUrl TEXT NOT NULL,
+    FOREIGN KEY (HostId, ProcessGuid)
+        REFERENCES Processes (HostId, ProcessGuid)
 );
 
 -- KafkaOffset table

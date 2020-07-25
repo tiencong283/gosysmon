@@ -31,7 +31,8 @@ class AlertList extends React.Component {
         this.handleNext = this.handleNext.bind(this)
     }
 
-    handleOpenSideBar(idx) {
+    handleOpenSideBar(idx, event) {
+        event.preventDefault()
         $("#alert-context").toggle()
         this.setState({
             alert: this.state.alertList[idx],
@@ -97,19 +98,15 @@ class AlertList extends React.Component {
         })
     }
 
-    getProcessUrl(alert) {
-        return `/process?ProviderGuid=${alert.ProviderGuid}&ProcessGuid=${alert.ProcessGuid}`
-    }
-
     renderAlerts() {
         return this.state.viewAlerts.map((alert, idx) => {
             return (
                 <tr>
                     <td>{alert.Timestamp}</td>
                     <td>{alert.HostName}</td>
-                    <td><Link to={this.getProcessUrl(alert)}>{alert.ProcessId} - {alert.ProcessImage}</Link></td>
-                    <td><span className="clickable"
-                              onClick={this.handleOpenSideBar.bind(this, idx)}>{alert.Technique.Id} - {alert.Technique.Name}</span>
+                    <td><Link to={alert.ProcRefUrl}>{alert.ProcessId} - {alert.ProcessImage}</Link></td>
+                    <td><a
+                        onClick={this.handleOpenSideBar.bind(this, idx)}>{alert.Technique.Id} - {alert.Technique.Name}</a>
                     </td>
                     <td>{alert.Message}</td>
                 </tr>
@@ -127,7 +124,7 @@ class AlertList extends React.Component {
                     <thead>
                     <tr>
                         <th>Timestamp</th>
-                        <th>Host Name</th>
+                        <th>Hostname</th>
                         <th>Process</th>
                         <th>Technique</th>
                         <th>Notes</th>

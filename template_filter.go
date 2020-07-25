@@ -19,8 +19,8 @@ func (filter *TemplateFilter) Init() error {
 	return nil
 }
 
-func (filter *TemplateFilter) EventCh() chan *SysmonEvent {
-	return filter.eventCh
+func (filter *TemplateFilter) EventCh() chan *Message {
+	return filter.messageCh
 }
 
 func (filter *TemplateFilter) StateCh() chan int {
@@ -32,7 +32,7 @@ func (filter *TemplateFilter) SetAlertCh(alertCh chan interface{}) {
 }
 
 func (filter *TemplateFilter) Start() {
-	for _ = range filter.eventCh {
+	for _ = range filter.messageCh {
 		// process events here
 	}
 	filter.State <- 1

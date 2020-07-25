@@ -31,7 +31,7 @@ function useQuery() {
 export default function ProcessWrapper() {
     let query = useQuery()
     return (
-        <Process providerGuid={query.get("ProviderGuid")} processGuid={query.get("ProcessGuid")}/>
+        <Process hostId={query.get("HostId")} processGuid={query.get("ProcessGuid")}/>
     )
 }
 
@@ -80,7 +80,7 @@ class Process extends React.Component {
         document.title = title
 
         let formData = new FormData()
-        formData.set("ProviderGuid", this.props.providerGuid)
+        formData.set("HostId", this.props.hostId)
         formData.set("ProcessGuid", this.props.processGuid)
 
         axios({
@@ -143,26 +143,27 @@ class Process extends React.Component {
     }
 }
 
-const executionProps = [
-    ["Process ID:", "ProcessId"],
-    ["Image:", "Image"],
-    ["Commandline:", "CommandLine"],
-    ["CurrentDirectory:", "CurrentDirectory"],
-    ["State:", "State"],
-    ["Execution time:", "CreatedAt"],
-    ["Stopped At:", "TerminatedAt"],
-    ["Integrity Level:", "IntegrityLevel"],
-]
-const procStates = ["Running", "Stopped"]
-
 class ProcessExecution extends React.Component {
+    constructor(props) {
+        super(props);
+        this.executionProps = [
+            ["Process ID:", "ProcessId"],
+            ["Image:", "Image"],
+            ["Commandline:", "CommandLine"],
+            ["CurrentDirectory:", "CurrentDirectory"],
+            ["State:", "State"],
+            ["Execution time:", "CreatedAt"],
+            ["Stopped At:", "TerminatedAt"],
+            ["Integrity Level:", "IntegrityLevel"],
+        ]
+    }
+
     render() {
         let proc = this.props.proc
-        proc.State = procStates[proc.State]
         return (
             <div>
                 {
-                    executionProps.map(function (prop) {
+                    this.executionProps.map(function (prop) {
                         return <p><span class="pinfo-key">{prop[0]}</span><span>{proc[prop[1]]}</span></p>
                     })
                 }
@@ -171,25 +172,28 @@ class ProcessExecution extends React.Component {
     }
 }
 
-const fileProps = [
-    ["SHA1:", "SHA1"],
-    ["SHA256:", "SHA256"],
-    ["MD5:", "MD5"],
-    ["OriginalFileName:", "OriginalFileName"],
-    ["FileVersion:", "FileVersion"],
-    ["Description:", "CreatedAt"],
-    ["Product:", "Product"],
-    ["Company:", "Company"],
-]
-
 class ProcessImageFile extends React.Component {
+    constructor(props) {
+        super(props);
+        this.fileProps = [
+            ["OriginalFileName:", "OriginalFileName"],
+            ["FileVersion:", "FileVersion"],
+            ["Description:", "CreatedAt"],
+            ["Product:", "Product"],
+            ["Company:", "Company"],
+        ]
+    }
+
     render() {
         let proc = this.props.proc
         return (
             <div>
+                <p><span className="pinfo-key">MD5:</span><span>{proc.Hashes.MD5}</span></p>
+                <p><span className="pinfo-key">SHA256:</span><span>{proc.Hashes.SHA256}</span></p>
+                <p><span className="pinfo-key">SHA1:</span><span>{proc.Hashes.SHA1}</span></p>
                 {
-                    fileProps.map(function (prop) {
-                        return <p><span class="pinfo-key">{prop[0]}</span><span>{proc[prop[1]]}</span></p>
+                    this.fileProps.map(function (prop) {
+                        return <p><span className="pinfo-key">{prop[0]}</span><span>{proc[prop[1]]}</span></p>
                     })
                 }
             </div>

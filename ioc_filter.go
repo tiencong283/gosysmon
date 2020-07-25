@@ -64,8 +64,8 @@ func NewIOCFilter() *IOCFilter {
 	}
 }
 
-func (filter *IOCFilter) IsSupported(event *SysmonEvent) bool {
-	switch event.EventID {
+func (filter *IOCFilter) IsSupported(msg *Message) bool {
+	switch msg.Event.EventID {
 	case EProcessCreate: // Hashes, todo: EFileDelete, EDriverLoad, EImageLoad, EFileCreateStreamHash
 		return true
 	case EDnsQuery: // Domains
@@ -81,8 +81,8 @@ func (filter *IOCFilter) Init() error {
 	return nil
 }
 
-func (filter *IOCFilter) EventCh() chan *SysmonEvent {
-	return filter.eventCh
+func (filter *IOCFilter) MessageCh() chan *Message {
+	return filter.messageCh
 }
 
 func (filter *IOCFilter) StateCh() chan int {
@@ -168,7 +168,8 @@ func (filter *IOCFilter) Start() {
 	var indicator string
 	var iocType int
 
-	for event := range filter.eventCh {
+	for msg := range filter.messageCh {
+		event := msg.Event
 		switch event.EventID {
 		case EProcessCreate, EFileDelete:
 			if event.EventID == EProcessCreate && strings.HasPrefix(event.get("Image"), "C:\\Windows\\System32\\") {
@@ -204,18 +205,18 @@ func (filter *IOCFilter) Start() {
 			continue
 		}
 		if malicious {
-			var msg, externalUrl string
+			var alertMsg, externalUrl string
 
 			switch iocType {
 			case IOCIp:
-				msg = fmt.Sprintf("An connection made to the malicious IP '%s'", indicator)
+				alertMsg = fmt.Sprintf("An connection made to the malicious IP '%s'", indicator)
 				externalUrl = fmt.Sprintf("https://www.virustotal.com/gui/ip-address/%s/detection", indicator)
 			case IOCDomain:
-				msg = fmt.Sprintf("An DNS query to malicious domain '%s'", indicator)
+				alertMsg = fmt.Sprintf("An DNS query to malicious domain '%s'", indicator)
 				externalUrl = fmt.Sprintf("https://www.virustotal.com/gui/domain/%s/detection", indicator)
 			case IOCHash:
 				if event.EventID == EProcessCreate {
-					msg = fmt.Sprintf("Malicious process '%s' is executed", GetImageName(event.get("Image")))
+					alertMsg = fmt.Sprintf("Malicious process '%s' is executed", GetImageName(event.get("Image")))
 				}
 				externalUrl = fmt.Sprintf("https://www.virustotal.com/gui/file/%s/detection", indicator)
 			}
@@ -223,9 +224,9 @@ func (filter *IOCFilter) Start() {
 				Timestamp:   event.timestamp(),
 				IOCType:     iocType,
 				Indicator:   indicator,
-				Message:     msg,
+				Message:     alertMsg,
 				ExternalUrl: externalUrl,
-				ResultId:    NewResultId(event),
+				ResultId:    NewResultId(msg),
 			}
 			filter.AlertCh <- report
 		}

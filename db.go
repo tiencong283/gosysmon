@@ -81,21 +81,21 @@ func (conn *DBConn) GetOrPreparedSmt(query string) (*sql.Stmt, error) {
 }
 
 // SaveHost inserts new host into IOCs table
-func (conn *DBConn) SaveHost(providerGuid string, host *Host) error {
-	query := "INSERT INTO Hosts(ProviderGuid, Name, FirstSeen, Active) VALUES($1, $2, $3, $4)"
+func (conn *DBConn) SaveHost(hostId string, host *Host) error {
+	query := "INSERT INTO Hosts(HostId, Name, FirstSeen, Active) VALUES($1, $2, $3, $4)"
 	stmt, err := conn.GetOrPreparedSmt(query)
 	if err != nil {
 		return err
 	}
-	if _, err = stmt.Exec(providerGuid, host.Name, host.FirstSeen, host.Active); err != nil {
+	if _, err = stmt.Exec(hostId, host.Name, host.FirstSeen, host.Active); err != nil {
 		return err
 	}
 	return nil
 }
 
 // SaveProc inserts new process into Processes table
-func (conn *DBConn) SaveProc(providerGuid string, proc *Process) error {
-	query := `INSERT INTO Processes(ProviderGuid, ProcessGuid, CreatedAt, TerminatedAt, State, ProcessId, Image, Marshal, PProcessGuid)
+func (conn *DBConn) SaveProc(hostId string, proc *Process) error {
+	query := `INSERT INTO Processes(HostId, ProcessGuid, CreatedAt, TerminatedAt, State, ProcessId, Image, Marshal, PProcessGuid)
 			  	VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 	stmt, err := conn.GetOrPreparedSmt(query)
 	if err != nil {
@@ -106,7 +106,7 @@ func (conn *DBConn) SaveProc(providerGuid string, proc *Process) error {
 	if proc.Parent != nil {
 		ppGuid = proc.Parent.ProcessGuid
 	}
-	if _, err = stmt.Exec(providerGuid, proc.ProcessGuid, proc.CreatedAt, proc.TerminatedAt, proc.State, proc.ProcessId, proc.Image,
+	if _, err = stmt.Exec(hostId, proc.ProcessGuid, proc.CreatedAt, proc.TerminatedAt, proc.State, proc.ProcessId, proc.Image,
 		json, ppGuid); err != nil {
 		return err
 	}
@@ -114,13 +114,13 @@ func (conn *DBConn) SaveProc(providerGuid string, proc *Process) error {
 }
 
 // UpdateProcTerm updates the process to terminated state
-func (conn *DBConn) UpdateProcTerm(providerGuid string, proc *Process) error {
-	query := "UPDATE Processes SET State=$1, TerminatedAt=$2 WHERE ProviderGuid=$3 and ProcessGuid=$4"
+func (conn *DBConn) UpdateProcTerm(hostId string, proc *Process) error {
+	query := "UPDATE Processes SET State=$1, TerminatedAt=$2 WHERE HostId=$3 and ProcessGuid=$4"
 	stmt, err := conn.GetOrPreparedSmt(query)
 	if err != nil {
 		return err
 	}
-	if _, err := stmt.Exec(proc.State, proc.TerminatedAt, providerGuid, proc.ProcessGuid); err != nil {
+	if _, err := stmt.Exec(proc.State, proc.TerminatedAt, hostId, proc.ProcessGuid); err != nil {
 		return err
 	}
 	return nil
@@ -128,13 +128,13 @@ func (conn *DBConn) UpdateProcTerm(providerGuid string, proc *Process) error {
 
 // SaveFeature inserts new feature into Features table
 func (conn *DBConn) SaveFeature(fea *MitreATTCKResult) error {
-	query := "INSERT INTO Features(ProviderGuid, ProcessGuid, Timestamp, IsAlert, Context, Message, TechniqueId) VALUES($1, $2, $3, $4, $5, $6, $7)"
+	query := "INSERT INTO Features(HostId, ProcessGuid, Timestamp, IsAlert, Context, Message, TechniqueId) VALUES($1, $2, $3, $4, $5, $6, $7)"
 	stmt, err := conn.GetOrPreparedSmt(query)
 	if err != nil {
 		return err
 	}
 	contextJson, _ := json.Marshal(fea.Context)
-	if _, err := stmt.Exec(fea.ProviderGuid, fea.ProcessGuid, fea.Timestamp, fea.IsAlert, contextJson, fea.Message, fea.Technique.Id); err != nil {
+	if _, err := stmt.Exec(fea.HostId, fea.ProcessGuid, fea.Timestamp, fea.IsAlert, contextJson, fea.Message, fea.Technique.Id); err != nil {
 		return err
 	}
 	return nil
@@ -142,12 +142,12 @@ func (conn *DBConn) SaveFeature(fea *MitreATTCKResult) error {
 
 // SaveIOC inserts new ioc into IOCs table
 func (conn *DBConn) SaveIOC(ioc *IOCResult) error {
-	query := "INSERT INTO IOCs(ProviderGuid, ProcessGuid, Timestamp, IOCType, Indicator, Message, ExternalUrl) VALUES($1, $2, $3, $4, $5, $6, $7)"
+	query := "INSERT INTO IOCs(HostId, ProcessGuid, Timestamp, IOCType, Indicator, Message, ExternalUrl) VALUES($1, $2, $3, $4, $5, $6, $7)"
 	stmt, err := conn.GetOrPreparedSmt(query)
 	if err != nil {
 		return err
 	}
-	if _, err := stmt.Exec(ioc.ProviderGuid, ioc.ProcessGuid, ioc.Timestamp, ioc.IOCType, ioc.Indicator, ioc.Message, ioc.ExternalUrl); err != nil {
+	if _, err := stmt.Exec(ioc.HostId, ioc.ProcessGuid, ioc.Timestamp, ioc.IOCType, ioc.Indicator, ioc.Message, ioc.ExternalUrl); err != nil {
 		return err
 	}
 	return nil
@@ -177,7 +177,7 @@ func (conn *DBConn) SaveKafkaOffset(offset int64) error {
 // GetAllHosts returns all hosts
 func (conn *DBConn) GetAllHosts() ([]*Host, error) {
 	hosts := make([]*Host, 0)
-	query := "SELECT ProviderGuid,Name,FirstSeen,Active FROM Hosts ORDER BY Id"
+	query := "SELECT HostId,Name,FirstSeen,Active FROM Hosts ORDER BY Id"
 	rows, err := conn.db.Query(query)
 	if err != nil {
 		return nil, err
@@ -187,7 +187,7 @@ func (conn *DBConn) GetAllHosts() ([]*Host, error) {
 		host := &Host{
 			Procs: make(map[string]*Process, 10000),
 		}
-		if err := rows.Scan(&host.ProviderGuid, &host.Name, &host.FirstSeen, &host.Active); err != nil {
+		if err := rows.Scan(&host.HostId, &host.Name, &host.FirstSeen, &host.Active); err != nil {
 			return nil, err
 		}
 		hosts = append(hosts, host)
@@ -199,11 +199,11 @@ func (conn *DBConn) GetAllHosts() ([]*Host, error) {
 }
 
 // GetProcessesByHost returns all processes by host
-func (conn *DBConn) GetProcessesByHost(providerGuid string) ([]*Process, error) {
+func (conn *DBConn) GetProcessesByHost(hostId string) ([]*Process, error) {
 	procs := make([]*Process, 0)
 	query := `SELECT ProcessGuid, CreatedAt, TerminatedAt, State, ProcessId, Image, Marshal, PProcessGuid
-				FROM Processes WHERE ProviderGuid=$1 ORDER BY Id`
-	rows, err := conn.db.Query(query, providerGuid)
+				FROM Processes WHERE HostId=$1 ORDER BY Id`
+	rows, err := conn.db.Query(query, hostId)
 	if err != nil {
 		return nil, err
 	}
@@ -229,10 +229,10 @@ func (conn *DBConn) GetProcessesByHost(providerGuid string) ([]*Process, error) 
 }
 
 // GetFeaturesByProcess returns all features by process
-func (conn *DBConn) GetFeaturesByProcess(providerGuid, processGuid string) ([]*MitreATTCKResult, error) {
+func (conn *DBConn) GetFeaturesByProcess(hostId, processGuid string) ([]*MitreATTCKResult, error) {
 	features := make([]*MitreATTCKResult, 0)
-	query := "SELECT Timestamp, IsAlert, Context, Message, TechniqueId FROM Features WHERE ProviderGuid=$1 and ProcessGuid=$2 ORDER BY Id"
-	rows, err := conn.db.Query(query, providerGuid, processGuid)
+	query := "SELECT Timestamp, IsAlert, Context, Message, TechniqueId FROM Features WHERE HostId=$1 and ProcessGuid=$2 ORDER BY Id"
+	rows, err := conn.db.Query(query, hostId, processGuid)
 	if err != nil {
 		return nil, err
 	}
@@ -241,8 +241,8 @@ func (conn *DBConn) GetFeaturesByProcess(providerGuid, processGuid string) ([]*M
 		var context, techID string
 		fea := &MitreATTCKResult{
 			ResultId: ResultId{
-				ProviderGuid: providerGuid,
-				ProcessGuid:  processGuid,
+				HostId:      hostId,
+				ProcessGuid: processGuid,
 			},
 		}
 		if err := rows.Scan(&fea.Timestamp, &fea.IsAlert, &context, &fea.Message, &techID); err != nil {
@@ -263,7 +263,7 @@ func (conn *DBConn) GetFeaturesByProcess(providerGuid, processGuid string) ([]*M
 // GetAllIOCs returns all IOCs
 func (conn *DBConn) GetAllIOCs() ([]*IOCResult, error) {
 	iocs := make([]*IOCResult, 0)
-	query := "SELECT ProviderGuid, ProcessGuid, Timestamp, IOCType, Indicator, Message, ExternalUrl FROM IOCs ORDER BY Id"
+	query := "SELECT HostId, ProcessGuid, Timestamp, IOCType, Indicator, Message, ExternalUrl FROM IOCs ORDER BY Id"
 	rows, err := conn.db.Query(query)
 	if err != nil {
 		return nil, err
@@ -271,7 +271,7 @@ func (conn *DBConn) GetAllIOCs() ([]*IOCResult, error) {
 	defer rows.Close()
 	for rows.Next() {
 		ioc := new(IOCResult)
-		if err := rows.Scan(&ioc.ProviderGuid, &ioc.ProcessGuid, &ioc.Timestamp, &ioc.IOCType, &ioc.Indicator, &ioc.Message, &ioc.ExternalUrl); err != nil {
+		if err := rows.Scan(&ioc.HostId, &ioc.ProcessGuid, &ioc.Timestamp, &ioc.IOCType, &ioc.Indicator, &ioc.Message, &ioc.ExternalUrl); err != nil {
 			return nil, err
 		}
 		iocs = append(iocs, ioc)

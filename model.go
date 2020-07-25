@@ -51,23 +51,22 @@ type Process struct {
 
 // client representation
 type Host struct {
-	ProviderGuid string
-	Name         string
-	FirstSeen    time.Time
-	Active       bool
-	Procs        map[string]*Process `json:"-"`
-	ProcsLock    sync.Mutex
+	HostId    string
+	Name      string
+	FirstSeen *time.Time
+	Active    bool
+	Procs     map[string]*Process `json:"-"`
+	ProcsLock sync.Mutex
 }
 
 // NewHost returns new instance of Host
-func NewHostFrom(event *SysmonEvent) *Host {
-	t, _ := time.Parse(TimeFormat, event.EventData["UtcTime"])
+func NewHostFrom(msg *Message) *Host {
 	return &Host{
-		ProviderGuid: event.ProviderGUID,
-		Name:         event.ComputerName,
-		FirstSeen:    t,
-		Active:       true,
-		Procs:        make(map[string]*Process, 10000),
+		HostId:    msg.Agent.ID,
+		Name:      msg.Event.ComputerName,
+		FirstSeen: msg.Event.timestamp(),
+		Active:    true,
+		Procs:     make(map[string]*Process, 10000),
 	}
 }
 
@@ -118,13 +117,25 @@ func (host *Host) GetNumberOfProcesses() int {
 	return len(host.Procs)
 }
 
-// HostManager manages sensor clients, the key is ProviderGuid which is the identity of the application or service (Sysmon) that logged the record
+// SaveProc saves process into db
+func (host *Host) SaveProc(proc *Process) error {
+	return PgConn.SaveProc(host.HostId, proc)
+}
+
+// UpdateProcTerm updates process state to stopped and save into db
+func (host *Host) UpdateProcTerm(timestamp *time.Time, proc *Process) error {
+	proc.State = PSStopped
+	proc.TerminatedAt = timestamp
+	return PgConn.UpdateProcTerm(host.HostId, proc)
+}
+
+// HostManager manages sensor clients, the key is HostId which is the identity of the application or service (Sysmon) that logged the record
 // so it can be used relatively to represent a computer
 type HostManager struct {
 	State      chan int // simulate ON/OFF state
 	Hosts      map[string]*Host
 	HostsLock  sync.Mutex
-	EventCh    chan *SysmonEvent
+	MessageCh  chan *Message
 	AlertCh    chan interface{}
 	Alerts     []*MitreATTCKResult
 	AlertsLock sync.Mutex
@@ -136,13 +147,13 @@ type HostManager struct {
 // NewHostManager returns new instance of HostManager
 func NewHostManager(alertCh chan interface{}) *HostManager {
 	return &HostManager{
-		State:   make(chan int),
-		Hosts:   make(map[string]*Host),
-		EventCh: make(chan *SysmonEvent, EventChBufSize),
-		AlertCh: alertCh,
-		Alerts:  make([]*MitreATTCKResult, 0, AlertChBufSize*10),
-		IOCs:    make([]*IOCResult, 0, AlertChBufSize*10),
-		logger:  log.WithField("section", "HostManager"),
+		State:     make(chan int),
+		Hosts:     make(map[string]*Host),
+		MessageCh: make(chan *Message, EventChBufSize),
+		AlertCh:   alertCh,
+		Alerts:    make([]*MitreATTCKResult, 0, AlertChBufSize*10),
+		IOCs:      make([]*IOCResult, 0, AlertChBufSize*10),
+		logger:    log.WithField("section", "HostManager"),
 	}
 }
 
@@ -153,8 +164,8 @@ func (hm *HostManager) LoadData() error {
 		return err
 	}
 	for _, host := range hosts { // load hosts
-		hm.Hosts[host.ProviderGuid] = host
-		procs, err := PgConn.GetProcessesByHost(host.ProviderGuid)
+		hm.Hosts[host.HostId] = host
+		procs, err := PgConn.GetProcessesByHost(host.HostId)
 		if err != nil {
 			return err
 		}
@@ -173,7 +184,7 @@ func (hm *HostManager) LoadData() error {
 			host.Procs[proc.ProcessGuid] = proc
 
 			// load features
-			features, err := PgConn.GetFeaturesByProcess(host.ProviderGuid, proc.ProcessGuid)
+			features, err := PgConn.GetFeaturesByProcess(host.HostId, proc.ProcessGuid)
 			if err != nil {
 				return err
 			}
@@ -201,13 +212,13 @@ func (hm *HostManager) Start() {
 	alertChClosed := false
 	for !eventChClosed || !alertChClosed {
 		select {
-		case event, ok := <-hm.EventCh:
+		case msg, ok := <-hm.MessageCh:
 			if !ok {
 				eventChClosed = true
 				continue
 			}
-			if event.isProcessEvent() {
-				hm.OnProcessEvent(event)
+			if msg.Event.isProcessEvent() {
+				hm.OnProcessEvent(msg)
 			}
 		case alert, ok := <-hm.AlertCh:
 			if !ok {
@@ -236,7 +247,7 @@ func (hm *HostManager) OnAlert(alert interface{}) {
 	default:
 		return
 	}
-	host := hm.GetHost(resultId.ProviderGuid)
+	host := hm.GetHost(resultId.HostId)
 	if host == nil {
 		// todo: the channel can be closed
 		hm.AlertCh <- alert
@@ -270,8 +281,9 @@ func (hm *HostManager) OnAlert(alert interface{}) {
 }
 
 // OnProcessEvent updates the process tree and its entry information
-func (hm *HostManager) OnProcessEvent(event *SysmonEvent) {
-	host := hm.GetOrCreateHost(event)
+func (hm *HostManager) OnProcessEvent(msg *Message) {
+	event := msg.Event
+	host := hm.GetOrCreateHost(msg)
 	processId := event.get("ProcessId")
 	processGuid := event.get("ProcessGuid")
 
@@ -282,69 +294,67 @@ func (hm *HostManager) OnProcessEvent(event *SysmonEvent) {
 		parent := host.GetProcess(ppGuid)
 		if parent == nil {
 			parent = host.AddProcess(true, ppGuid, event.get("ParentProcessId"), event.get("ParentImage"), event.get("ParentCommandLine"))
-			if err := PgConn.SaveProc(event.ProviderGUID, parent); err != nil {
-				log.Warnf("cannot persist the process, %s\n", err)
+			if err := host.SaveProc(parent); err != nil {
+				log.Warnf("cannot persist the proc, %s\n", err)
 			}
 		}
-		process := host.AddProcess(false, processGuid, processId, event.get("Image"), event.get("CommandLine"))
-		process.CreatedAt = event.timestamp()
-		process.OriginalFileName = event.get("OriginalFileName")
-		process.CurrentDirectory = event.get("CurrentDirectory")
-		process.IntegrityLevel = event.get("IntegrityLevel")
-		process.Hashes = StringToMap(event.get("Hashes"))
+		proc := host.AddProcess(false, processGuid, processId, event.get("Image"), event.get("CommandLine"))
+		proc.CreatedAt = event.timestamp()
+		proc.OriginalFileName = event.get("OriginalFileName")
+		proc.CurrentDirectory = event.get("CurrentDirectory")
+		proc.IntegrityLevel = event.get("IntegrityLevel")
+		proc.Hashes = StringToMap(event.get("Hashes"))
 
-		process.FileVersion = event.get("FileVersion")
-		process.Description = event.get("Description")
-		process.Product = event.get("Product")
-		process.Company = event.get("Company")
+		proc.FileVersion = event.get("FileVersion")
+		proc.Description = event.get("Description")
+		proc.Product = event.get("Product")
+		proc.Company = event.get("Company")
 
-		process.Parent = parent
-		parent.AddChildProc(process)
-		if err := PgConn.SaveProc(event.ProviderGUID, process); err != nil {
-			log.Warnf("cannot persist the process, %s\n", err)
+		proc.Parent = parent
+		parent.AddChildProc(proc)
+		if err := host.SaveProc(proc); err != nil {
+			log.Warnf("cannot persist the proc, %s\n", err)
 		}
 
 	case EProcessTerminate:
-		if process := host.GetProcess(processGuid); process != nil {
-			process.State = PSStopped
-			process.TerminatedAt = event.timestamp()
-			if err := PgConn.UpdateProcTerm(event.ProviderGUID, process); err != nil {
-				log.Warnf("cannot update the process state, %s\n", err)
+		if proc := host.GetProcess(processGuid); proc != nil {
+			if err := host.UpdateProcTerm(event.timestamp(), proc); err != nil {
+				log.Warnf("cannot update the proc state, %s\n", err)
 			}
 		}
 	default:
-		var process *Process
-		if process = host.GetProcess(processGuid); process == nil {
-			process = host.AddProcess(true, processGuid, processId, event.get("Image"), "")
-			if err := PgConn.SaveProc(event.ProviderGUID, process); err != nil {
-				log.Warnf("cannot persist the process, %s\n", err)
+		var proc *Process
+		if proc = host.GetProcess(processGuid); proc == nil {
+			proc = host.AddProcess(true, processGuid, processId, event.get("Image"), "")
+			if err := host.SaveProc(proc); err != nil {
+				log.Warnf("cannot persist the proc, %s\n", err)
 			}
 		}
 	}
 }
 
 // AddHost adds new host
-func (hm *HostManager) AddHost(providerGuid string, host *Host) {
+func (hm *HostManager) AddHost(hostId string, host *Host) {
 	hm.HostsLock.Lock()
-	hm.Hosts[providerGuid] = host
+	hm.Hosts[hostId] = host
 	hm.HostsLock.Unlock()
-	_ = PgConn.SaveHost(providerGuid, host)
+	_ = PgConn.SaveHost(hostId, host)
 }
 
-// GetHost return the host with corresponding providerGuid
-func (hm *HostManager) GetHost(providerGuid string) *Host {
-	return hm.Hosts[providerGuid]
+// GetHost return the host with corresponding hostId
+func (hm *HostManager) GetHost(hostId string) *Host {
+	return hm.Hosts[hostId]
 }
 
 // GetOrCreateHost return the existing host or create a new host for the event
-func (hm *HostManager) GetOrCreateHost(event *SysmonEvent) *Host {
-	providerGuid := event.ProviderGUID
-	host := hm.Hosts[providerGuid]
+func (hm *HostManager) GetOrCreateHost(msg *Message) *Host {
+	hostId := msg.Agent.ID
+	host := hm.GetHost(hostId)
 	if host != nil {
 		return host
 	}
-	host = NewHostFrom(event)
-	hm.AddHost(providerGuid, host)
+	host = NewHostFrom(msg)
+	hm.AddHost(hostId, host)
 	return host
 }
 
@@ -355,11 +365,11 @@ func (hm *HostManager) GetNumOfHosts() int {
 
 // request handler for "/api/host"
 func (hm *HostManager) AllHostHandler(c *gin.Context) {
-	hosts := make([]*Host, 0)
+	hosts := make([]*HostView, 0)
 
 	hm.HostsLock.Lock()
 	for _, host := range hm.Hosts {
-		hosts = append(hosts, host)
+		hosts = append(hosts, NewHostView(host))
 	}
 	hm.HostsLock.Unlock()
 
@@ -369,32 +379,13 @@ func (hm *HostManager) AllHostHandler(c *gin.Context) {
 // request handler for "/api/ioc"
 func (hm *HostManager) AllIOCHandler(c *gin.Context) {
 	hm.IOCsLock.Lock()
-	iocList := make([]*IOCResult, len(hm.IOCs))
-	copy(iocList, hm.IOCs)
+	iocList := make([]*IOCView, len(hm.IOCs))
+	for i, ioc := range hm.IOCs {
+		iocList[i] = NewIOCView(ioc)
+	}
 	hm.IOCsLock.Unlock()
 
 	c.JSON(http.StatusOK, iocList)
-}
-
-// AlertView is the view layer for alert object
-type AlertView struct {
-	*MitreATTCKResult
-	HostName     string
-	ProcessImage string
-	ProcessId    int
-}
-
-func (hm *HostManager) NewAlertView(alert *MitreATTCKResult) *AlertView {
-	alertView := new(AlertView)
-	alertView.MitreATTCKResult = alert
-	if host := hm.GetHost(alert.ProviderGuid); host != nil {
-		alertView.HostName = host.Name
-		if proc := host.GetProcess(alert.ProcessGuid); proc != nil {
-			alertView.ProcessImage = GetImageName(proc.Image)
-			alertView.ProcessId = proc.ProcessId
-		}
-	}
-	return alertView
 }
 
 // request handler for "/api/alert"
@@ -409,65 +400,16 @@ func (hm *HostManager) AllAlertHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, alertViews)
 }
 
-// ProcessView is the view layer for Process object (due to some conflict on json tags)
-type ProcessView struct {
-	Abandoned   bool // true if the process not derived from event ProcessCreate
-	ProcessGuid string
-	// process creation and termination time
-	CreatedAt    *time.Time
-	TerminatedAt *time.Time
-	// process state
-	State int
-	// process info
-	ProcessId        int
-	Image            string
-	ImageName        string
-	OriginalFileName string
-	CommandLine      string
-	CurrentDirectory string
-	IntegrityLevel   string
-	// workaround for errors in client
-	MD5    string
-	SHA256 string
-	SHA1   string
-	// product information
-	FileVersion, Description, Product, Company string
-}
-
-func NewProcessView(proc *Process) *ProcessView {
-	return &ProcessView{
-		Abandoned:        proc.Abandoned,
-		ProcessGuid:      proc.ProcessGuid,
-		CreatedAt:        proc.CreatedAt,
-		TerminatedAt:     proc.TerminatedAt,
-		State:            proc.State,
-		ProcessId:        proc.ProcessId,
-		Image:            proc.Image,
-		ImageName:        GetImageName(proc.Image),
-		OriginalFileName: proc.OriginalFileName,
-		CommandLine:      proc.CommandLine,
-		CurrentDirectory: proc.CurrentDirectory,
-		IntegrityLevel:   proc.IntegrityLevel,
-		MD5:              proc.Hashes["MD5"],
-		SHA256:           proc.Hashes["SHA256"],
-		SHA1:             proc.Hashes["SHA1"],
-		FileVersion:      proc.FileVersion,
-		Description:      proc.Description,
-		Product:          proc.Product,
-		Company:          proc.Company,
-	}
-}
-
 // request handler for "/api/process" (process information)
 func (hm *HostManager) ProcessHandler(c *gin.Context) {
-	providerGuid, processGuid := c.PostForm("ProviderGuid"), c.PostForm("ProcessGuid")
-	if providerGuid == "" || processGuid == "" {
+	hostId, processGuid := c.PostForm("HostId"), c.PostForm("ProcessGuid")
+	if hostId == "" || processGuid == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid parameters"})
 		return
 	}
 
 	hm.HostsLock.Lock()
-	host := hm.GetHost(providerGuid)
+	host := hm.GetHost(hostId)
 	hm.HostsLock.Unlock()
 	if host == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unknown host id"})
@@ -491,14 +433,14 @@ type ProcessTree struct {
 
 // request handler for "/api/process-tree" (process relationship information)
 func (hm *HostManager) ProcessTreeHandler(c *gin.Context) {
-	providerGuid, processGuid := c.PostForm("ProviderGuid"), c.PostForm("ProcessGuid")
-	if providerGuid == "" || processGuid == "" {
+	hostId, processGuid := c.PostForm("HostId"), c.PostForm("ProcessGuid")
+	if hostId == "" || processGuid == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid parameters"})
 		return
 	}
 
 	hm.HostsLock.Lock()
-	host := hm.GetHost(providerGuid)
+	host := hm.GetHost(hostId)
 	hm.HostsLock.Unlock()
 	if host == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unknown host id"})

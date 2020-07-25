@@ -5,11 +5,6 @@ import (
 	"time"
 )
 
-/*
-	These event structures are quickly derived from json using https://github.com/ChimeraCoder/gojson
-	Only choose used, useful features so it's not complete
-*/
-
 const (
 	TimeFormat = "2006-01-02 15:04:05.999999999"
 )
@@ -42,9 +37,17 @@ const (
 	ESysmonError          = 255
 )
 
-// the metadata of all sysmon events
-type EventMetadata struct {
+/*
+	These event structures are quickly derived from json using https://github.com/ChimeraCoder/gojson
+	Only choose used, useful features so it's not complete
+*/
+
+// sysmon event representation
+type SysmonEvent struct {
+	// event metadata
+	ProviderName string `json:"provider_name"`
 	ProviderGUID string `json:"provider_guid"`
+	Channel      string `json:"channel"`
 	ComputerName string `json:"computer_name"`
 	RecordID     int    `json:"record_id"`
 	EventID      int    `json:"event_id"`
@@ -61,12 +64,18 @@ type EventMetadata struct {
 		Name       string `json:"name"`
 		Type       string `json:"type"`
 	} `json:"user"`
+
+	// event data
+	EventData map[string]string `json:"event_data"`
 }
 
-// sysmon event representation
-type SysmonEvent struct {
-	EventMetadata
-	EventData map[string]string `json:"event_data"`
+// event message which wraps real event data along with other information
+type Message struct {
+	Event *SysmonEvent `json:"winlog"`
+	Agent struct {
+		ID       string `json:"id"`
+		Hostname string `json:"hostname"`
+	} `json:"agent"`
 }
 
 // isSysmonEvent returns true if the event is about the Sysmon service
@@ -119,9 +128,4 @@ func (event *SysmonEvent) isSystemEvent() bool {
 // isProcessEvent returns true if the event caused by a process. In other words, the event must contain  information to identify that process
 func (event *SysmonEvent) isProcessEvent() bool {
 	return !event.isSysmonEvent() && !event.isSystemEvent()
-}
-
-// event message which wraps event along with other information+
-type Message struct {
-	Winlog SysmonEvent `json: "winlog"`
 }

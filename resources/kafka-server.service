@@ -1,0 +1,15 @@
+[Unit]
+Description=Apache Kafka
+Documentation=https://kafka.apache.org/documentation/
+Requires=zookeeper-server.service
+After=zookeeper-server.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/home/gosysmon/kafka/bin/kafka-server-start.sh /home/gosysmon/kafka/config/server.properties
+ExecStop=/home/gosysmon/kafka/bin/kafka-server-stop.sh
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
