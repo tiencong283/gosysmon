@@ -136,6 +136,19 @@ func (conn *DBConn) UpdateProcTerm(hostId string, proc *Process) error {
 	return nil
 }
 
+// DeleteProc delete a process
+func (conn *DBConn) DeleteProc(hostId, pGuid string) error {
+	query := "DELETE FROM Processes WHERE HostId=$1 and ProcessGuid=$2"
+	stmt, err := conn.GetOrPreparedSmt(query)
+	if err != nil {
+		return err
+	}
+	if _, err := stmt.Exec(hostId, pGuid); err != nil {
+		return err
+	}
+	return nil
+}
+
 // SaveFeature inserts new feature into Features table
 func (conn *DBConn) SaveFeature(fea *MitreATTCKResult) error {
 	query := "INSERT INTO Features(HostId, ProcessGuid, Timestamp, IsAlert, Context, Message, TechniqueId) VALUES($1, $2, $3, $4, $5, $6, $7)"

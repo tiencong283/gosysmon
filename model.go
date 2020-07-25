@@ -131,6 +131,11 @@ func (host *Host) SaveProc(proc *Process) error {
 	return PgConn.SaveProc(host.HostId, proc)
 }
 
+// DeleteProc delete process proc in db
+func (host *Host) DeleteProc(proc *Process) error {
+	return PgConn.DeleteProc(host.HostId, proc.ProcessGuid)
+}
+
 // UpdateProcTerm updates process state to stopped and save into db
 func (host *Host) UpdateProcTerm(timestamp *time.Time, proc *Process) error {
 	proc.State = PSStopped
@@ -331,7 +336,18 @@ func (hm *HostManager) OnProcessEvent(msg *Message) {
 				hm.logger.Warnf("cannot persist the proc, %s\n", err)
 			}
 		}
-		proc := host.AddProcess(false, processGuid, processId, event.get("Image"), event.get("CommandLine"))
+		var proc *Process
+		if proc = host.GetProcess(processGuid); proc != nil { // ProcessCreate events may come after other events
+			proc.Image = event.get("Image")
+			proc.CommandLine = event.get("CommandLine")
+			proc.Abandoned = false
+			if err := host.DeleteProc(proc); err != nil {
+				hm.logger.Warnf("cannot delete process from db, %s\n", err)
+			}
+		} else {
+			proc = host.AddProcess(false, processGuid, processId, event.get("Image"), event.get("CommandLine"))
+		}
+
 		proc.CreatedAt = event.timestamp()
 		proc.OriginalFileName = event.get("OriginalFileName")
 		proc.CurrentDirectory = event.get("CurrentDirectory")

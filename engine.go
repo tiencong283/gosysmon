@@ -177,10 +177,8 @@ func (engine *Engine) Start() error {
 		if _, err := RedisConn.Do("DEL", "activity-logs"); err != nil {
 			return fmt.Errorf("cannot clean db on redis, %s", err)
 		}
-	} else {
-		if err := engine.HostManager.LoadData(); err != nil {
-			return err
-		}
+	} else if err := engine.HostManager.LoadData(); err != nil {
+		return err
 	}
 
 	go engine.HostManager.Start()
