@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-const viewTimestampFormat = "2006-01-02 15:04:05.999999999"
+const viewTimestampFormat = "2006-01-02 15:04:05.000"
 const procRefUrlFormat = `/process?HostId=%s&ProcessGuid=%s`
 
 // HostView is the view layer for Host object
@@ -151,4 +151,29 @@ func NewProcessView(proc *Process) *ProcessView {
 		procView.TerminatedAt = proc.TerminatedAt.Format(viewTimestampFormat)
 	}
 	return procView
+}
+
+// ActivityLogView is the view layer for ActivityLog object
+type ActivityLogView struct {
+	Timestamp string
+	Type      string
+	Message   string
+}
+
+func formatActLogType(logType int) string {
+	switch logType {
+	case LClient:
+		return "Client"
+	case LServer:
+		return "Server"
+	}
+	return "Unknown"
+}
+
+func NewActivityLogView(actLog *ActivityLog) *ActivityLogView {
+	return &ActivityLogView{
+		Timestamp: actLog.Timestamp.Format(viewTimestampFormat),
+		Type:      formatActLogType(actLog.Type),
+		Message:   actLog.Message,
+	}
 }

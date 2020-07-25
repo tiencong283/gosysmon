@@ -49,9 +49,6 @@ func (conn *DBConn) Close() {
 
 // DeleteAll deletes all entries in related tables
 func (conn *DBConn) DeleteAll() error {
-	if _, err := conn.db.Exec("DELETE FROM KafkaOffsets"); err != nil {
-		return err
-	}
 	if _, err := conn.db.Exec("DELETE FROM IOCs"); err != nil {
 		return err
 	}
@@ -88,6 +85,19 @@ func (conn *DBConn) SaveHost(hostId string, host *Host) error {
 		return err
 	}
 	if _, err = stmt.Exec(hostId, host.Name, host.FirstSeen, host.Active); err != nil {
+		return err
+	}
+	return nil
+}
+
+// UpdateHostState updates the host status
+func (conn *DBConn) UpdateHostState(hostId string, active bool) error {
+	query := "UPDATE Hosts SET Active=$1 WHERE HostId=$2"
+	stmt, err := conn.GetOrPreparedSmt(query)
+	if err != nil {
+		return err
+	}
+	if _, err := stmt.Exec(active, hostId); err != nil {
 		return err
 	}
 	return nil
@@ -148,27 +158,6 @@ func (conn *DBConn) SaveIOC(ioc *IOCResult) error {
 		return err
 	}
 	if _, err := stmt.Exec(ioc.HostId, ioc.ProcessGuid, ioc.Timestamp, ioc.IOCType, ioc.Indicator, ioc.Message, ioc.ExternalUrl); err != nil {
-		return err
-	}
-	return nil
-}
-
-// GetPreKafkaOffset returns the latest kafka broker offset
-func (conn *DBConn) GetPreKafkaOffset() int64 {
-	var offset int64
-	query := "SELECT KafkaOffset FROM KafkaOffsets ORDER BY ModTime DESC LIMIT 1"
-	err := conn.db.QueryRow(query).Scan(&offset)
-	if err != nil {
-		return 0
-	}
-	return offset
-}
-
-// SaveKafkaOffset insert one entry into KafkaOffsets table
-func (conn *DBConn) SaveKafkaOffset(offset int64) error {
-	query := "INSERT INTO KafkaOffsets(KafkaOffset) VALUES($1)"
-	_, err := conn.db.Exec(query, offset)
-	if err != nil {
 		return err
 	}
 	return nil

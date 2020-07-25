@@ -68,11 +68,3 @@ CREATE TABLE IOCs
     FOREIGN KEY (HostId, ProcessGuid)
         REFERENCES Processes (HostId, ProcessGuid)
 );
-
--- KafkaOffset table
-CREATE TABLE KafkaOffsets
-(
-    Id          SERIAL,
-    KafkaOffset BIGINT NOT NULL,
-    ModTime     TIMESTAMP DEFAULT current_timestamp
-);

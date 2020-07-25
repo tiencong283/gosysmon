@@ -5,12 +5,37 @@ import (
 	"fmt"
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
+	"github.com/gomodule/redigo/redis"
 	"github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
+
+const (
+	LServer = iota
+	LClient
+)
+
+type ActivityLog struct {
+	Timestamp time.Time
+	Type      int
+	Message   string
+}
+
+func (actLog *ActivityLog) Save() error {
+	jsonLog, err := json.MarshalToString(actLog)
+	if err != nil {
+		return err
+	}
+	if _, err = RedisConn.Do("LPUSH", "activity-logs", jsonLog); err != nil {
+		return err
+	}
+	return nil
+}
 
 // FilterEngine is the detector engine
 type FilterEngine struct {
@@ -89,11 +114,19 @@ func NewEngine(configFilePath string) (*Engine, error) {
 	engine.HostManager = NewHostManager(AlertCh)
 	engine.FilterEngine = NewFilterEngine(AlertCh)
 	engine.ExtractorEngine = NewExtractorEngine()
-	// kafka
+
+	// get kafka offset
 	var lastOffset int64
-	if engine.Config.SaveOnExit { // not parsing from the start
-		lastOffset = PgConn.GetPreKafkaOffset()
+	if engine.Config.KafkaParseFrom == "last" {
+		val, err := redis.Int64(RedisConn.Do("GET", "lastKafkaOffset"))
+		if err != nil && err != redis.ErrNil {
+			return nil, err
+		}
+		lastOffset = val
 	}
+	log.Infof("parsing events from offset %d\n", lastOffset)
+
+	lastOffset = 0
 	engine.Reader = kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  []string{engine.Config.KafkaBrokers},
 		Topic:    engine.Config.KafkaTopic,
@@ -101,7 +134,7 @@ func NewEngine(configFilePath string) (*Engine, error) {
 		MaxBytes: 10e6,
 	})
 	if err := engine.Reader.SetOffset(lastOffset); err != nil {
-		return nil, err // todo: should reset to 0
+		return nil, fmt.Errorf("cannot set topic offset to %d, %s", lastOffset, err)
 	}
 	// global transformation
 	engine.ExtractorEngine.Register(NewRegistryExtractor())
@@ -120,11 +153,29 @@ func NewEngine(configFilePath string) (*Engine, error) {
 	return engine, nil
 }
 
+// SaveServerLogs saves server logs
+func (engine *Engine) SaveServerLogs(action string) error {
+	actLog := &ActivityLog{
+		Timestamp: time.Now(),
+		Type:      LServer,
+	}
+	switch action {
+	case "started":
+		actLog.Message = "Server started"
+	case "stopped":
+		actLog.Message = "Server stopped"
+	}
+	return actLog.Save()
+}
+
 // Start starts receiving messages and distribute to workers
 func (engine *Engine) Start() error {
-	if !engine.Config.SaveOnExit {
+	if engine.Config.KafkaParseFrom == "start" {
 		if err := PgConn.DeleteAll(); err != nil { // clean all previous db
-			return err
+			return fmt.Errorf("cannot delete process-related tables, %s", err)
+		}
+		if _, err := RedisConn.Do("DEL", "activity-logs"); err != nil {
+			return fmt.Errorf("cannot clean db on redis, %s", err)
 		}
 	} else {
 		if err := engine.HostManager.LoadData(); err != nil {
@@ -135,6 +186,9 @@ func (engine *Engine) Start() error {
 	go engine.HostManager.Start()
 	go engine.FilterEngine.Start()
 	engine.StartWebApp()
+	if err := engine.SaveServerLogs("started"); err != nil {
+		log.Warn("cannot log server activities, ", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func(termChan chan os.Signal, cancel context.CancelFunc) {
@@ -168,16 +222,20 @@ func (engine *Engine) Start() error {
 		lastOffset = rawMsg.Offset
 		msg = new(Message)
 	}
-	if engine.Config.SaveOnExit && lastOffset > preOffset {
-		if err := PgConn.SaveKafkaOffset(lastOffset + 1); err != nil {
-			log.Warnf("cannot save kafka offset, %s", err)
+	if engine.Config.KafkaParseFrom == "start" && lastOffset > preOffset {
+		if _, err := RedisConn.Do("SET", "lastKafkaOffset", lastOffset+1); err != nil {
+			log.Warnf("cannot save last kafka offset, %s", err)
 		}
 	}
+
 	close(engine.HostManager.MessageCh)
 	engine.FilterEngine.CloseAll()
 	// wait until exit
 	<-engine.HostManager.State
 
+	if err := engine.SaveServerLogs("stopped"); err != nil {
+		log.Warn("cannot log server activities, ", err)
+	}
 	return nil
 }
 
@@ -197,6 +255,7 @@ func (engine *Engine) StartWebApp() {
 	apiGroup.GET("alert", engine.HostManager.AllAlertHandler)
 	apiGroup.POST("process", engine.HostManager.ProcessHandler)
 	apiGroup.POST("process-tree", engine.HostManager.ProcessTreeHandler)
+	apiGroup.GET("activity-log", engine.AllLogHandler)
 
 	go func() {
 		if err := router.Run(endpoint); err != nil {
@@ -210,4 +269,22 @@ func (engine *Engine) Close() {
 	_ = engine.Reader.Close()
 	_ = RedisConn.Close()
 	PgConn.Close()
+}
+
+// request handler for "/api/activity-log"
+func (engine *Engine) AllLogHandler(c *gin.Context) {
+	actLogs := make([]*ActivityLogView, 0)
+	jsonActLogs, err := redis.Strings(RedisConn.Do("LRANGE", "activity-logs", 0, -1))
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	for _, jsonActLog := range jsonActLogs {
+		actLog := new(ActivityLog)
+		if err := json.Unmarshal([]byte(jsonActLog), actLog); err != nil {
+			log.Warn("cannot unmarshal jsonActLog, ", err)
+		}
+		actLogs = append(actLogs, NewActivityLogView(actLog))
+	}
+	c.JSON(http.StatusOK, actLogs)
 }

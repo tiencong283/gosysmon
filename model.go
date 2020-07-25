@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"net/http"
@@ -84,6 +85,14 @@ func (current *Process) AddChildProc(proc *Process) {
 		proc.Sibling.Prev = lastChild
 		lastChild.Sibling.Next = &proc.Sibling
 	}
+}
+
+func (host *Host) UpdateHostState(active bool) error {
+	if host.Active != active {
+		host.Active = active
+		return PgConn.UpdateHostState(host.HostId, active)
+	}
+	return nil
 }
 
 // getProcess returns the process with the corresponding pGuid
@@ -224,6 +233,8 @@ func (hm *HostManager) Start() {
 			}
 			if msg.Event.isProcessEvent() {
 				hm.OnProcessEvent(msg)
+			} else if msg.Event.isSysmonEvent() {
+				hm.OnSysmonEvent(msg)
 			}
 		case alert, ok := <-hm.AlertCh:
 			if !ok {
@@ -352,6 +363,37 @@ func (hm *HostManager) OnProcessEvent(msg *Message) {
 				hm.logger.Warnf("cannot persist the proc, %s\n", err)
 			}
 		}
+	}
+}
+
+func (hm *HostManager) OnSysmonEvent(msg *Message) {
+	host := hm.GetOrCreateHost(msg)
+
+	event := msg.Event
+	actLog := &ActivityLog{
+		Timestamp: *event.timestamp(),
+		Type:      LClient,
+	}
+	switch event.EventID {
+	case EServiceStateChange:
+		state := event.get("State") == "Started" // Stopped, Started
+		if state {
+			actLog.Message = event.ComputerName + "'sensor started"
+		} else {
+			actLog.Message = event.ComputerName + "'sensor stopped"
+		}
+		if err := host.UpdateHostState(state); err != nil {
+			hm.logger.Warn("cannot update host state, ", err)
+		}
+	case ESysmonError:
+		actLog.Message = fmt.Sprintf("%s's sensor error ID: %s, message: %s", event.ComputerName, event.get("ID"), event.get("Description"))
+	case EConfigStateChange:
+		actLog.Message = fmt.Sprintf("%s's sensor changed its configuration to '%s' with identity %s", event.ComputerName,
+			event.get("Configuration"), event.get("ConfigurationFileHash"))
+	}
+
+	if err := actLog.Save(); err != nil {
+		hm.logger.Warn("cannot log client activities, ", err)
 	}
 }
 

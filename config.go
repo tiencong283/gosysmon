@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -13,8 +14,9 @@ const (
 	ConfigFilePath = "config.yml"
 
 	// default Kafka connection
-	DefKafkaBrokers = "localhost:9092"
-	DefKafkaTopic   = "winsysmon"
+	DefKafkaBrokers   = "localhost:9092"
+	DefKafkaTopic     = "winsysmon"
+	DefKafkaParseFrom = "last"
 
 	// default Postgresql connection
 	DefPgHost      = "localost"
@@ -31,9 +33,6 @@ const (
 	DefRPassword      = "gosysmon"
 	RedisConUrlFormat = "redis://%s:%s@%s:%d" // redis://user:secret@localhost:6379, https://www.iana.org/assignments/uri-schemes/prov/redis
 
-	// default app behavior
-	DefSaveOnExit = true
-
 	// default endpoint address
 	DefServerHost = "0.0.0.0"
 	DefServerPort = "9090"
@@ -41,13 +40,13 @@ const (
 
 // Config is the application configuration
 type Config struct {
-	KafkaBrokers string
-	KafkaTopic   string
-	PgConUrl     string
-	RedisConUrl  string
-	SaveOnExit   bool
-	ServerHost   string
-	ServerPort   string
+	KafkaBrokers   string
+	KafkaTopic     string
+	PgConUrl       string
+	RedisConUrl    string
+	KafkaParseFrom string
+	ServerHost     string
+	ServerPort     string
 }
 
 // InitFrom reads configuration from file configFilePath
@@ -58,15 +57,16 @@ func (config *Config) InitFrom(configFilePath string) error {
 	viper.AddConfigPath(".")
 	viper.SetDefault("kafka.brokers", DefKafkaBrokers)
 	viper.SetDefault("kafka.topic", DefKafkaTopic)
+	viper.SetDefault("kafka.parse-from", DefKafkaParseFrom)
 	viper.SetDefault("postgresql.host", DefPgHost)
 	viper.SetDefault("postgresql.port", DefPgPort)
 	viper.SetDefault("postgresql.database", DefPgDatabase)
 	viper.SetDefault("postgresql.user", DefPgUser)
 	viper.SetDefault("postgresql.password", DefPgPassword)
-	viper.SetDefault("redis.host", DefPgHost)
-	viper.SetDefault("redis.port", DefPgPort)
-	viper.SetDefault("redis.user", DefPgUser)
-	viper.SetDefault("redis.password", DefPgPassword)
+	viper.SetDefault("redis.host", DefRHost)
+	viper.SetDefault("redis.port", DefRPort)
+	viper.SetDefault("redis.user", DefRUsername)
+	viper.SetDefault("redis.password", DefRPassword)
 	viper.SetDefault("server.host", DefServerHost)
 	viper.SetDefault("server.port", DefServerPort)
 
@@ -87,7 +87,7 @@ func (config *Config) InitFrom(configFilePath string) error {
 	config.RedisConUrl = fmt.Sprintf(RedisConUrlFormat, viper.GetString("redis.user"), viper.GetString("redis.password"),
 		viper.GetString("redis.host"), viper.GetInt("redis.port"))
 
-	config.SaveOnExit = viper.GetBool("save-on-exit")
+	config.KafkaParseFrom = strings.ToLower(viper.GetString("kafka.parse-from"))
 	config.ServerHost = viper.GetString("server.host")
 	config.ServerPort = viper.GetString("server.port")
 	return nil
