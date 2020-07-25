@@ -175,9 +175,9 @@ func (engine *Engine) Start() error {
 	}
 	close(engine.HostManager.MessageCh)
 	engine.FilterEngine.CloseAll()
-
 	// wait until exit
 	<-engine.HostManager.State
+
 	return nil
 }
 

@@ -132,28 +132,31 @@ func (host *Host) UpdateProcTerm(timestamp *time.Time, proc *Process) error {
 // HostManager manages sensor clients, the key is HostId which is the identity of the application or service (Sysmon) that logged the record
 // so it can be used relatively to represent a computer
 type HostManager struct {
-	State      chan int // simulate ON/OFF state
-	Hosts      map[string]*Host
-	HostsLock  sync.Mutex
-	MessageCh  chan *Message
-	AlertCh    chan interface{}
-	Alerts     []*MitreATTCKResult
-	AlertsLock sync.Mutex
-	IOCs       []*IOCResult
-	IOCsLock   sync.Mutex
-	logger     *log.Entry
+	State     chan int // simulate ON/OFF state
+	Hosts     map[string]*Host
+	HostsLock sync.Mutex
+	MessageCh chan *Message
+	AlertCh   chan interface{}
+	// some alerts may come/be processed before its related messages, so  WaitAlertCh acts as a temporary cache
+	WaitAlertCh chan interface{}
+	Alerts      []*MitreATTCKResult
+	AlertsLock  sync.Mutex
+	IOCs        []*IOCResult
+	IOCsLock    sync.Mutex
+	logger      *log.Entry
 }
 
 // NewHostManager returns new instance of HostManager
 func NewHostManager(alertCh chan interface{}) *HostManager {
 	return &HostManager{
-		State:     make(chan int),
-		Hosts:     make(map[string]*Host),
-		MessageCh: make(chan *Message, EventChBufSize),
-		AlertCh:   alertCh,
-		Alerts:    make([]*MitreATTCKResult, 0, AlertChBufSize*10),
-		IOCs:      make([]*IOCResult, 0, AlertChBufSize*10),
-		logger:    log.WithField("section", "HostManager"),
+		State:       make(chan int),
+		Hosts:       make(map[string]*Host),
+		MessageCh:   make(chan *Message, MsgChBufSize),
+		AlertCh:     alertCh,
+		WaitAlertCh: make(chan interface{}, AlertChBufSize),
+		Alerts:      make([]*MitreATTCKResult, 0, AlertChBufSize*10),
+		IOCs:        make([]*IOCResult, 0, AlertChBufSize*10),
+		logger:      log.WithField("section", "HostManager"),
 	}
 }
 
@@ -208,13 +211,15 @@ func (hm *HostManager) LoadData() error {
 
 // Start is the thread entry point
 func (hm *HostManager) Start() {
-	eventChClosed := false
-	alertChClosed := false
-	for !eventChClosed || !alertChClosed {
+	closedChanMask := 0
+	for closedChanMask != 7 {
 		select {
 		case msg, ok := <-hm.MessageCh:
 			if !ok {
-				eventChClosed = true
+				if closedChanMask&1 == 0 {
+					closedChanMask |= 1
+					close(hm.WaitAlertCh)
+				}
 				continue
 			}
 			if msg.Event.isProcessEvent() {
@@ -222,7 +227,13 @@ func (hm *HostManager) Start() {
 			}
 		case alert, ok := <-hm.AlertCh:
 			if !ok {
-				alertChClosed = true
+				closedChanMask |= 2
+				continue
+			}
+			hm.OnAlert(alert)
+		case alert, ok := <-hm.WaitAlertCh:
+			if !ok {
+				closedChanMask |= 4
 				continue
 			}
 			hm.OnAlert(alert)
@@ -233,50 +244,61 @@ func (hm *HostManager) Start() {
 
 // OnAlert updates the alert into its process
 func (hm *HostManager) OnAlert(alert interface{}) {
-	var resultId *ResultId
-	var mar *MitreATTCKResult
-	var ioc *IOCResult
-
 	switch alert := alert.(type) {
 	case *MitreATTCKResult:
-		mar = alert
-		resultId = &mar.ResultId
+		hm.OnMitreAttackAlert(alert)
 	case *IOCResult:
-		ioc = alert
-		resultId = &ioc.ResultId
-	default:
+		hm.OnIOCAlert(alert)
+	}
+}
+
+// SaveFeature saves MitreATTCKResult into db
+func (hm *HostManager) SaveFeature(fea *MitreATTCKResult) error {
+	return PgConn.SaveFeature(fea)
+}
+
+func (hm *HostManager) OnMitreAttackAlert(fea *MitreATTCKResult) {
+	host := hm.GetHost(fea.HostId)
+	if host == nil {
+		hm.WaitAlertCh <- fea
 		return
 	}
-	host := hm.GetHost(resultId.HostId)
-	if host == nil {
-		// todo: the channel can be closed
-		hm.AlertCh <- alert
-	} else {
-		proc := host.GetProcess(resultId.ProcessGuid)
-		if proc == nil { // in rare cases when the process is not mapped to the tree yet (some kind of delays)
-			// todo: the channel can be closed
-			hm.AlertCh <- alert
-			return
-		}
-		// mapping to corresponding process and db
-		switch alert.(type) {
-		case *MitreATTCKResult:
-			if mar != nil && mar.IsAlert {
-				hm.Alerts = append(hm.Alerts, mar)
-			}
-			proc.Features = append(proc.Features, mar)
-			if err := PgConn.SaveFeature(mar); err != nil {
-				log.Warnf("cannot persist the feature, %s\n", err)
-			}
-		case *IOCResult:
-			hm.IOCsLock.Lock()
-			hm.IOCs = append(hm.IOCs, ioc)
-			hm.IOCsLock.Unlock()
+	proc := host.GetProcess(fea.ProcessGuid)
+	if proc == nil { // in rare cases when the process is not mapped to the tree yet (some kind of delays)
+		hm.WaitAlertCh <- fea
+		return
+	}
+	if fea != nil && fea.IsAlert {
+		hm.Alerts = append(hm.Alerts, fea)
+	}
+	proc.Features = append(proc.Features, fea)
+	if err := hm.SaveFeature(fea); err != nil {
+		hm.logger.Warnf("cannot persist the feature, %s\n", err)
+	}
+}
 
-			if err := PgConn.SaveIOC(ioc); err != nil {
-				log.Warnf("cannot persist the IOC, %s\n", err)
-			}
-		}
+// SaveIOC saves ioc into db
+func (hm *HostManager) SaveIOC(ioc *IOCResult) error {
+	return PgConn.SaveIOC(ioc)
+}
+
+func (hm *HostManager) OnIOCAlert(ioc *IOCResult) {
+	host := hm.GetHost(ioc.HostId)
+	if host == nil {
+		hm.WaitAlertCh <- ioc
+		return
+	}
+	proc := host.GetProcess(ioc.ProcessGuid)
+	if proc == nil { // in rare cases when the process is not mapped to the tree yet (some kind of delays)
+		hm.WaitAlertCh <- ioc
+		return
+	}
+	hm.IOCsLock.Lock()
+	hm.IOCs = append(hm.IOCs, ioc)
+	hm.IOCsLock.Unlock()
+
+	if err := hm.SaveIOC(ioc); err != nil {
+		hm.logger.Warnf("cannot persist the IOC, %s\n", err)
 	}
 }
 
@@ -295,7 +317,7 @@ func (hm *HostManager) OnProcessEvent(msg *Message) {
 		if parent == nil {
 			parent = host.AddProcess(true, ppGuid, event.get("ParentProcessId"), event.get("ParentImage"), event.get("ParentCommandLine"))
 			if err := host.SaveProc(parent); err != nil {
-				log.Warnf("cannot persist the proc, %s\n", err)
+				hm.logger.Warnf("cannot persist the proc, %s\n", err)
 			}
 		}
 		proc := host.AddProcess(false, processGuid, processId, event.get("Image"), event.get("CommandLine"))
@@ -313,13 +335,13 @@ func (hm *HostManager) OnProcessEvent(msg *Message) {
 		proc.Parent = parent
 		parent.AddChildProc(proc)
 		if err := host.SaveProc(proc); err != nil {
-			log.Warnf("cannot persist the proc, %s\n", err)
+			hm.logger.Warnf("cannot persist the proc, %s\n", err)
 		}
 
 	case EProcessTerminate:
 		if proc := host.GetProcess(processGuid); proc != nil {
 			if err := host.UpdateProcTerm(event.timestamp(), proc); err != nil {
-				log.Warnf("cannot update the proc state, %s\n", err)
+				hm.logger.Warnf("cannot update the proc state, %s\n", err)
 			}
 		}
 	default:
@@ -327,7 +349,7 @@ func (hm *HostManager) OnProcessEvent(msg *Message) {
 		if proc = host.GetProcess(processGuid); proc == nil {
 			proc = host.AddProcess(true, processGuid, processId, event.get("Image"), "")
 			if err := host.SaveProc(proc); err != nil {
-				log.Warnf("cannot persist the proc, %s\n", err)
+				hm.logger.Warnf("cannot persist the proc, %s\n", err)
 			}
 		}
 	}

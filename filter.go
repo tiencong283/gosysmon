@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	EventChBufSize = 100000
+	MsgChBufSize   = 100000
 	AlertChBufSize = 1000
 )
 
@@ -78,7 +78,7 @@ func NewCommonFilterer(name string) CommonFilterer {
 	return CommonFilterer{
 		State:     make(chan int),
 		Name:      name,
-		messageCh: make(chan *Message, EventChBufSize),
+		messageCh: make(chan *Message, MsgChBufSize),
 		logger:    log.WithField("FilterId", name),
 	}
 }
