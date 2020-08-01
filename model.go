@@ -131,9 +131,9 @@ func (host *Host) SaveProc(proc *Process) error {
 	return PgConn.SaveProc(host.HostId, proc)
 }
 
-// DeleteProc delete process proc in db
-func (host *Host) DeleteProc(proc *Process) error {
-	return PgConn.DeleteProc(host.HostId, proc.ProcessGuid)
+// UpdateProc updates process in db
+func (host *Host) UpdateProc(proc *Process) error {
+	return PgConn.UpdateProc(host.HostId, proc)
 }
 
 // UpdateProcTerm updates process state to stopped and save into db
@@ -327,6 +327,8 @@ func (hm *HostManager) OnProcessEvent(msg *Message) {
 
 	switch event.EventID {
 	case EProcessCreate:
+		shouldUpdate := false
+
 		// for some reasons (like filtering), it's possible for parent processes not in processList yet
 		ppGuid := event.get("ParentProcessGuid")
 		parent := host.GetProcess(ppGuid)
@@ -337,13 +339,12 @@ func (hm *HostManager) OnProcessEvent(msg *Message) {
 			}
 		}
 		var proc *Process
-		if proc = host.GetProcess(processGuid); proc != nil { // ProcessCreate events may come after other events
+		if proc = host.GetProcess(processGuid); proc != nil && proc.Abandoned { // ProcessCreate events may come after other
+			// events
 			proc.Image = event.get("Image")
 			proc.CommandLine = event.get("CommandLine")
 			proc.Abandoned = false
-			if err := host.DeleteProc(proc); err != nil {
-				hm.logger.Warnf("cannot delete process from db, %s\n", err)
-			}
+			shouldUpdate = true
 		} else {
 			proc = host.AddProcess(false, processGuid, processId, event.get("Image"), event.get("CommandLine"))
 		}
@@ -361,8 +362,14 @@ func (hm *HostManager) OnProcessEvent(msg *Message) {
 
 		proc.Parent = parent
 		parent.AddChildProc(proc)
-		if err := host.SaveProc(proc); err != nil {
-			hm.logger.Warnf("cannot persist the proc, %s\n", err)
+		if !shouldUpdate {
+			if err := host.SaveProc(proc); err != nil {
+				hm.logger.Warnf("cannot persist the proc, %s\n", err)
+			}
+		} else {
+			if err := host.UpdateProc(proc); err != nil {
+				hm.logger.Warnf("cannot update the proc, %s\n", err)
+			}
 		}
 
 	case EProcessTerminate:

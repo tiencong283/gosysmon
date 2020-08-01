@@ -123,6 +123,30 @@ func (conn *DBConn) SaveProc(hostId string, proc *Process) error {
 	return nil
 }
 
+// UpdateProc updates the process in Processes table
+func (conn *DBConn) UpdateProc(hostId string, proc *Process) error {
+	query := `UPDATE Processes SET 
+				CreatedAt=$1
+				TerminatedAt=$2
+				State=$3
+				Marshal=$4
+				PProcessGuid=$5
+				WHERE HostId=$6 and ProcessGuid=$7`
+	stmt, err := conn.GetOrPreparedSmt(query)
+	if err != nil {
+		return err
+	}
+	json, _ := json.Marshal(proc)
+	ppGuid := ""
+	if proc.Parent != nil {
+		ppGuid = proc.Parent.ProcessGuid
+	}
+	if _, err = stmt.Exec(proc.CreatedAt, proc.TerminatedAt, proc.State, json, ppGuid, hostId, proc.ProcessGuid); err != nil {
+		return err
+	}
+	return nil
+}
+
 // UpdateProcTerm updates the process to terminated state
 func (conn *DBConn) UpdateProcTerm(hostId string, proc *Process) error {
 	query := "UPDATE Processes SET State=$1, TerminatedAt=$2 WHERE HostId=$3 and ProcessGuid=$4"
