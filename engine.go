@@ -126,7 +126,6 @@ func NewEngine(configFilePath string) (*Engine, error) {
 	}
 	log.Infof("parsing events from offset %d\n", lastOffset)
 
-	lastOffset = 0
 	engine.Reader = kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  []string{engine.Config.KafkaBrokers},
 		Topic:    engine.Config.KafkaTopic,
@@ -220,7 +219,7 @@ func (engine *Engine) Start() error {
 		lastOffset = rawMsg.Offset
 		msg = new(Message)
 	}
-	if engine.Config.KafkaParseFrom == "start" && lastOffset > preOffset {
+	if lastOffset > preOffset {
 		if _, err := RedisConn.Do("SET", "lastKafkaOffset", lastOffset+1); err != nil {
 			log.Warnf("cannot save last kafka offset, %s", err)
 		}
