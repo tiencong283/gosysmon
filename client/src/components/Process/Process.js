@@ -245,7 +245,7 @@ class ProcessRel extends React.Component {
         let proc = this.props.proc
         const networkGraphOptions = {
             chart: {
-                height: '100%'
+                height: 800
             },
             title: {
                 text: `Process Tree For ${proc.ImageName}`
