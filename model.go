@@ -520,7 +520,7 @@ func (hm *HostManager) ProcessHandler(c *gin.Context) {
 }
 
 type ProcessTree struct {
-	Nodes []*ProcessView
+	Nodes []*ProcessNodeView
 	Links [][2]string
 }
 
@@ -547,25 +547,34 @@ func (hm *HostManager) ProcessTreeHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unknown process id"})
 		return
 	}
-	procRoot := proc
-	for ; procRoot.Parent != nil; procRoot = procRoot.Parent { // traverse to its root
-	}
 	procTree := &ProcessTree{
-		Nodes: make([]*ProcessView, 0),
+		Nodes: make([]*ProcessNodeView, 0),
 		Links: make([][2]string, 0),
 	}
-	queue := []*Process{procRoot}
-
 	var curProc *Process
-	for len(queue) > 0 {
-		curProc, queue = queue[0], queue[1:]
-		procTree.Nodes = append(procTree.Nodes, NewProcessView(curProc))
 
+	// showing its ancestors
+	curProc = proc
+	for ; curProc.Parent != nil; curProc = curProc.Parent { // traverse to its root
+		procTree.Nodes = append(procTree.Nodes, NewProcessNodeView(curProc.Parent, "ancestor"))
+		procTree.Links = append(procTree.Links, [2]string{curProc.Parent.ProcessGuid, curProc.ProcessGuid})
+	}
+	// showing all its children
+	queue := make([]*Process, 0)
+	curProc = proc
+	procTree.Nodes = append(procTree.Nodes, NewProcessNodeView(curProc, "focus"))
+
+	for {
 		head := &curProc.Children
 		for cur := head.Next; cur != nil && cur != head; cur = cur.Next {
 			procTree.Links = append(procTree.Links, [2]string{curProc.ProcessGuid, cur.ProcessGuid})
 			queue = append(queue, cur.Process)
 		}
+		if len(queue) <= 0 {
+			break
+		}
+		curProc, queue = queue[0], queue[1:]
+		procTree.Nodes = append(procTree.Nodes, NewProcessNodeView(curProc, "child"))
 	}
 	c.JSON(http.StatusOK, procTree)
 }

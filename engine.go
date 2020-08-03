@@ -84,7 +84,7 @@ type Engine struct {
 	Reader          *kafka.Reader
 	HostManager     *HostManager
 	FilterEngine    *FilterEngine
-	ExtractorEngine *ExtractorEngine
+	ExtractorEngine *PreprocessorEngine
 	TermChan        chan os.Signal
 }
 
@@ -113,7 +113,7 @@ func NewEngine(configFilePath string) (*Engine, error) {
 	AlertCh := make(chan interface{}, AlertChBufSize)
 	engine.HostManager = NewHostManager(AlertCh)
 	engine.FilterEngine = NewFilterEngine(AlertCh)
-	engine.ExtractorEngine = NewExtractorEngine()
+	engine.ExtractorEngine = NewPreprocessorEngine()
 
 	// get kafka offset
 	var lastOffset int64
@@ -136,7 +136,7 @@ func NewEngine(configFilePath string) (*Engine, error) {
 		return nil, fmt.Errorf("cannot set topic offset to %d, %s", lastOffset, err)
 	}
 	// global transformation
-	engine.ExtractorEngine.Register(NewRegistryExtractor())
+	engine.ExtractorEngine.Register(NewRegistryProcessor())
 
 	// register Filters
 	if err := engine.FilterEngine.Register(NewRuleFilter()); err != nil {
