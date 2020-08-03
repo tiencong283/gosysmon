@@ -236,9 +236,7 @@ func (conn *DBConn) GetProcessesByHost(hostId string) ([]*Process, error) {
 	defer rows.Close()
 	for rows.Next() {
 		var marshal string
-		proc := &Process{
-			Features: make([]*MitreATTCKResult, 0, 32),
-		}
+		proc := NewProcess()
 		if err := rows.Scan(&proc.ProcessGuid, &proc.CreatedAt, &proc.TerminatedAt, &proc.State, &proc.ProcessId,
 			&proc.Image, &marshal, &proc.ParentPGuid); err != nil {
 			return nil, err

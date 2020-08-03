@@ -1,5 +1,5 @@
 server:
-  host: localhost
+  host: 0.0.0.0
   port: 9090
 
 # the address of Sysmon logs
@@ -15,7 +15,7 @@ postgresql:
   host: localhost
   port: 5432
   database: gosysmon
-  user: tiencong283
+  user: gosysmon
   password: gosysmon
 # redis used as a cached for IOC checking
 redis:

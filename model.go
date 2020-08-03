@@ -50,6 +50,16 @@ type Process struct {
 	Features []*MitreATTCKResult `json:"-"`
 }
 
+func NewProcess() *Process {
+	proc := &Process{
+		State:    PSRunning,
+		Features: make([]*MitreATTCKResult, 0, 32),
+	}
+	proc.Sibling.Process = proc
+	proc.Children.Process = proc
+	return proc
+}
+
 // client representation
 type Host struct {
 	HostId    string
@@ -103,17 +113,13 @@ func (host *Host) GetProcess(pGuid string) *Process {
 // AddProcess creates a new process for the event
 func (host *Host) AddProcess(abandoned bool, pGuid, pid, image, cmd string) *Process {
 	processId, _ := strconv.Atoi(pid)
-	proc := &Process{
-		Abandoned:   abandoned,
-		ProcessGuid: pGuid,
-		State:       PSRunning,
-		ProcessId:   processId,
-		Image:       image,
-		CommandLine: cmd,
-		Features:    make([]*MitreATTCKResult, 0, 32),
-	}
-	proc.Sibling.Process = proc
-	proc.Children.Process = proc
+
+	proc := NewProcess()
+	proc.Abandoned = abandoned
+	proc.ProcessGuid = pGuid
+	proc.ProcessId = processId
+	proc.Image = image
+	proc.CommandLine = cmd
 
 	host.ProcsLock.Lock()
 	defer host.ProcsLock.Unlock()
@@ -187,9 +193,6 @@ func (hm *HostManager) LoadData() error {
 			return err
 		}
 		for _, proc := range procs { // load processes
-			proc.Sibling.Process = proc
-			proc.Children.Process = proc
-
 			if proc.ParentPGuid != "" {
 				parent := host.GetProcess(proc.ParentPGuid)
 				if parent == nil {
@@ -205,10 +208,13 @@ func (hm *HostManager) LoadData() error {
 			if err != nil {
 				return err
 			}
+			for _, fea := range features { // load alerts
+				if fea.IsAlert {
+					hm.Alerts = append(hm.Alerts, fea)
+				}
+			}
 			if len(features) > 0 {
 				proc.Features = features
-			} else {
-				proc.Features = make([]*MitreATTCKResult, 0, 32)
 			}
 		}
 	}
