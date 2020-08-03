@@ -9,9 +9,10 @@ import RelationshipTabLogo from "./diagram-3.svg"
 
 import Highcharts from 'highcharts'
 import HighchartsReact from 'highcharts-react-official'
+import $ from "jquery"
 
 require('highcharts/modules/sankey')(Highcharts)
-require('highcharts/modules/organization')(Highcharts)
+require('highcharts/modules/networkgraph')(Highcharts)
 require('highcharts/modules/exporting')(Highcharts)
 require('highcharts/modules/accessibility')(Highcharts)
 
@@ -111,7 +112,7 @@ class Process extends React.Component {
     }
 
     renderProcNavItems() {
-        return procNavItems.map((navItem, idx) => {
+        return procNavItems.map((navItem) => {
             let active = navItem.tabSegment === this.state.tabSegment ? "process-tab-active" : ""
             return (
                 <li className={active}><a href={navItem.tabSegment} onClick={this.handleSwitchTab}><img
@@ -164,7 +165,7 @@ class ProcessExecution extends React.Component {
             <div>
                 {
                     this.executionProps.map(function (prop) {
-                        return <p><span class="pinfo-key">{prop[0]}</span><span>{proc[prop[1]]}</span></p>
+                        return <p><span className="pinfo-key">{prop[0]}</span><span>{proc[prop[1]]}</span></p>
                     })
                 }
             </div>
@@ -209,35 +210,49 @@ class ProcessActivities extends React.Component {
 
 class ProcessRel extends React.Component {
     render() {
-        const options = {
+        if ($.isEmptyObject(this.props.procRel)) {
+            return
+        }
+        const networkGraphOptions = {
             chart: {
-                inverted: true,
+                height: '100%'
             },
             title: {
                 text: 'Process Tree'
             },
             series: [{
-                type: 'organization',
+                type: 'networkgraph',
                 name: '',
+                turboThreshold: 0,
+                marker: {
+                    radius: 13
+                },
+                draggable: false,   // disable drag nodes
                 keys: ['from', 'to'],
                 data: this.props.procRel.Links,
                 nodes: this.props.procRel.Nodes.map(function (node) {
                     return {
                         id: node.ProcessGuid,
-                        name: node.ImageName,
+                        imageName: node.ImageName,
                     }
                 }),
-                colorByPoint: false,
-                color: 'white',
-                dataLabels: {
-                    color: 'black',
-                    useHTML: false
+                layoutAlgorithm: {
+                    enableSimulation: true,
                 },
-            }],
+                dataLabels: {
+                    enabled: true,
+                    format: '{point.imageName}',
+                    linkFormat: '\u2192',
+                    textPath: {
+                        enabled: true
+                    },
+                    allowOverlap: true
+                },
+            }]
         }
         return (
             <div>
-                <HighchartsReact highcharts={Highcharts} options={options}/>
+                <HighchartsReact highcharts={Highcharts} options={networkGraphOptions}/>
             </div>
         )
     }
