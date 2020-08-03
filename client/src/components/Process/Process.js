@@ -227,7 +227,7 @@ class ProcessRel extends React.Component {
                 marker: {
                     radius: 13
                 },
-                draggable: false,   // disable drag nodes
+                draggable: true,
                 keys: ['from', 'to'],
                 data: this.props.procRel.Links,
                 nodes: this.props.procRel.Nodes.map(function (node) {
@@ -243,12 +243,12 @@ class ProcessRel extends React.Component {
                     enabled: true,
                     format: '{point.imageName}',
                     linkFormat: '\u2192',
-                    textPath: {
-                        enabled: true
-                    },
                     allowOverlap: true
                 },
-            }]
+            }],
+            exporting: {
+                disabled: true
+            }
         }
         return (
             <div>
