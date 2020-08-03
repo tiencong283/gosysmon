@@ -181,16 +181,18 @@ func NewActivityLogView(actLog *ActivityLog) *ActivityLogView {
 // ProcessNodeView represents a node for using in network graph, Highcharts
 type ProcessNodeView struct {
 	ProcessGuid string
+	Image       string
 	ImageName   string
-	CommandLine string
 	ProcessId   int
+	NodeType    string // one of 'focus', 'ancestor', 'child'
 }
 
-func NewProcessNodeView(proc *Process) *ProcessNodeView {
+func NewProcessNodeView(proc *Process, nodeType string) *ProcessNodeView {
 	return &ProcessNodeView{
 		ProcessGuid: proc.ProcessGuid,
+		Image:       proc.Image,
 		ImageName:   GetImageName(proc.Image),
-		CommandLine: proc.CommandLine,
 		ProcessId:   proc.ProcessId,
+		NodeType:    nodeType,
 	}
 }

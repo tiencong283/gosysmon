@@ -556,20 +556,25 @@ func (hm *HostManager) ProcessTreeHandler(c *gin.Context) {
 	// showing its ancestors
 	curProc = proc
 	for ; curProc.Parent != nil; curProc = curProc.Parent { // traverse to its root
+		procTree.Nodes = append(procTree.Nodes, NewProcessNodeView(curProc.Parent, "ancestor"))
 		procTree.Links = append(procTree.Links, [2]string{curProc.Parent.ProcessGuid, curProc.ProcessGuid})
 	}
 	// showing all its children
-	queue := []*Process{proc}
+	queue := make([]*Process, 0)
+	curProc = proc
+	procTree.Nodes = append(procTree.Nodes, NewProcessNodeView(curProc, "focus"))
 
-	for len(queue) > 0 {
-		curProc, queue = queue[0], queue[1:]
-		procTree.Nodes = append(procTree.Nodes, NewProcessNodeView(curProc))
-
+	for {
 		head := &curProc.Children
 		for cur := head.Next; cur != nil && cur != head; cur = cur.Next {
 			procTree.Links = append(procTree.Links, [2]string{curProc.ProcessGuid, cur.ProcessGuid})
 			queue = append(queue, cur.Process)
 		}
+		if len(queue) <= 0 {
+			break
+		}
+		curProc, queue = queue[0], queue[1:]
+		procTree.Nodes = append(procTree.Nodes, NewProcessNodeView(curProc, "child"))
 	}
 	c.JSON(http.StatusOK, procTree)
 }

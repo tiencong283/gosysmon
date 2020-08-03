@@ -137,7 +137,8 @@ class Process extends React.Component {
                     {this.state.tabSegment === "#execution-details" && <ProcessExecution proc={this.state.proc}/>}
                     {this.state.tabSegment === "#file-defails" && <ProcessImageFile proc={this.state.proc}/>}
                     {this.state.tabSegment === "#activity" && <ProcessActivities/>}
-                    {this.state.tabSegment === "#relationship" && <ProcessRel procRel={this.state.procRel}/>}
+                    {this.state.tabSegment === "#relationship" &&
+                    <ProcessRel proc={this.state.proc} procRel={this.state.procRel}/>}
                 </div>
             </div>
         )
@@ -209,49 +210,95 @@ class ProcessActivities extends React.Component {
 }
 
 class ProcessRel extends React.Component {
+    constructor(props) {
+        super(props)
+        this.nodeColors = {
+            child: {
+                color: 'darkgray',
+                description: 'Child Process'
+            },
+            ancestor: {
+                color: 'brown',
+                description: 'Ancestor Process'
+            },
+            focus: {
+                color: 'cyan',
+                description: 'Focused Process'
+            }
+        }
+    }
+
+    renderNodeNotes() {
+        return Object.keys(this.nodeColors).map(key => {
+            let nodeColor = this.nodeColors[key]
+            let style = {
+                backgroundColor: nodeColor.color
+            }
+            return <span><span className="circle" style={style}/>{nodeColor.description}</span>
+        })
+    }
+
     render() {
-        if ($.isEmptyObject(this.props.procRel)) {
+        if ($.isEmptyObject(this.props.procRel) || $.isEmptyObject(this.props.proc)) {
             return
         }
+        let proc = this.props.proc
         const networkGraphOptions = {
             chart: {
                 height: '100%'
             },
             title: {
-                text: 'Process Tree'
+                text: `Process Tree For ${proc.ImageName}`
+            },
+            subtitle: {
+                text: `ProcessID: ${proc.ProcessId}, Image: ${proc.Image}`
+            },
+            tooltip: {
+                formatter: function () {
+                    return `<div><span>ProcessID: ${this.point.processId}</span><br>Image: ${this.point.image}</span></div>`
+                }
             },
             series: [{
                 type: 'networkgraph',
                 name: '',
+                layoutAlgorithm: {
+                    enableSimulation: true,
+                },
                 turboThreshold: 0,
                 marker: {
                     radius: 13
                 },
                 draggable: true,
-                keys: ['from', 'to'],
-                data: this.props.procRel.Links,
-                nodes: this.props.procRel.Nodes.map(function (node) {
-                    return {
-                        id: node.ProcessGuid,
-                        imageName: node.ImageName,
-                    }
-                }),
-                layoutAlgorithm: {
-                    enableSimulation: true,
-                },
                 dataLabels: {
                     enabled: true,
                     format: '{point.imageName}',
                     linkFormat: '\u2192',
                     allowOverlap: true
                 },
+                keys: ['from', 'to'],
+                data: this.props.procRel.Links,
+                nodes: this.props.procRel.Nodes.map((node) => {
+                    return {
+                        id: node.ProcessGuid,
+                        imageName: node.ImageName,
+                        image: node.Image,
+                        processId: node.ProcessId,
+                        color: this.nodeColors[node.NodeType].color
+                    }
+                }),
             }],
             exporting: {
-                disabled: true
-            }
+                enabled: false
+            },
         }
+
         return (
-            <div>
+            <div className="processtree-content">
+                <div className="node-note">
+                    {
+                        this.renderNodeNotes()
+                    }
+                </div>
                 <HighchartsReact highcharts={Highcharts} options={networkGraphOptions}/>
             </div>
         )
