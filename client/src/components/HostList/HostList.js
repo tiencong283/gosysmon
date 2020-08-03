@@ -74,7 +74,7 @@ class HostList extends React.Component {
                     hostList: data,
                     paging: {
                         ...this.state.paging,
-                        numOfPages: Math.floor(data.length / this.state.paging.elementsPerPage)
+                        numOfPages: Math.floor(data.length / this.state.paging.elementsPerPage) + 1
                     }
                 })
             }.bind(this),
