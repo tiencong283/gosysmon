@@ -159,8 +159,6 @@ type HostManager struct {
 	AlertCh   chan interface{}
 	// some alerts may come/be processed before its related messages, so  WaitAlertCh acts as a temporary cache
 	WaitAlertCh chan interface{}
-	Alerts      []*MitreATTCKResult
-	AlertsLock  sync.Mutex
 	IOCs        []*IOCResult
 	IOCsLock    sync.Mutex
 	logger      *log.Entry
@@ -174,7 +172,6 @@ func NewHostManager(alertCh chan interface{}) *HostManager {
 		MessageCh:   make(chan *Message, MsgChBufSize),
 		AlertCh:     alertCh,
 		WaitAlertCh: make(chan interface{}, AlertChBufSize),
-		Alerts:      make([]*MitreATTCKResult, 0, AlertChBufSize*10),
 		IOCs:        make([]*IOCResult, 0, AlertChBufSize*10),
 		logger:      log.WithField("section", "HostManager"),
 	}
@@ -207,11 +204,6 @@ func (hm *HostManager) LoadData() error {
 			features, err := PgConn.GetFeaturesByProcess(host.HostId, proc.ProcessGuid)
 			if err != nil {
 				return err
-			}
-			for _, fea := range features { // load alerts
-				if fea.IsAlert {
-					hm.Alerts = append(hm.Alerts, fea)
-				}
 			}
 			if len(features) > 0 {
 				proc.Features = features
@@ -289,9 +281,6 @@ func (hm *HostManager) OnMitreAttackAlert(fea *MitreATTCKResult) {
 	if proc == nil { // in rare cases when the process is not mapped to the tree yet (some kind of delays)
 		hm.WaitAlertCh <- fea
 		return
-	}
-	if fea != nil && fea.IsAlert {
-		hm.Alerts = append(hm.Alerts, fea)
 	}
 	proc.Features = append(proc.Features, fea)
 	if err := hm.SaveFeature(fea); err != nil {
@@ -483,13 +472,15 @@ func (hm *HostManager) AllIOCHandler(c *gin.Context) {
 
 // request handler for "/api/alert"
 func (hm *HostManager) AllAlertHandler(c *gin.Context) {
-	hm.AlertsLock.Lock()
-	alertViews := make([]*AlertView, len(hm.Alerts))
-	for i, alert := range hm.Alerts {
-		alertViews[i] = hm.NewAlertView(alert)
+	alertViews := make([]*AlertView, 0)
+	alerts, err := PgConn.GetAlertsOrderByTimestampDesc()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, err)
+		return
 	}
-	hm.AlertsLock.Unlock()
-
+	for _, alert := range alerts {
+		alertViews = append(alertViews, hm.NewAlertView(alert))
+	}
 	c.JSON(http.StatusOK, alertViews)
 }
 
@@ -577,4 +568,19 @@ func (hm *HostManager) ProcessTreeHandler(c *gin.Context) {
 		procTree.Nodes = append(procTree.Nodes, NewProcessNodeView(curProc, "child"))
 	}
 	c.JSON(http.StatusOK, procTree)
+}
+
+// request handler for "/api/process-activities" (process relationship information)
+func (hm *HostManager) ProcessActivityHandler(c *gin.Context) {
+	hostId, processGuid := c.PostForm("HostId"), c.PostForm("ProcessGuid")
+	if hostId == "" || processGuid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid parameters"})
+		return
+	}
+	alerts, err := PgConn.GetProcessActivities(hostId, processGuid)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, err)
+		return
+	}
+	c.JSON(http.StatusOK, alerts)
 }

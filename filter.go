@@ -20,7 +20,7 @@ type ResultId struct {
 func NewResultId(msg *Message) ResultId {
 	return ResultId{
 		HostId:      msg.Agent.ID,
-		ProcessGuid: msg.Event.get("ProcessGuid"),
+		ProcessGuid: msg.Event.getProcessGUID(),
 	}
 }
 
@@ -57,7 +57,7 @@ func (r *MitreATTCKResult) AddContext(key string, val interface{}) {
 
 // ModelFilter is the filter that builds models of detector for abnormal detection
 type MitreATTCKFilterer interface {
-	IsSupported(event *Message) bool
+	IsSupported(msg *Message) bool
 	Init() error
 	MessageCh() chan *Message
 	StateCh() chan int

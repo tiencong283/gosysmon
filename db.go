@@ -126,10 +126,10 @@ func (conn *DBConn) SaveProc(hostId string, proc *Process) error {
 // UpdateProc updates the process in Processes table
 func (conn *DBConn) UpdateProc(hostId string, proc *Process) error {
 	query := `UPDATE Processes SET 
-				CreatedAt=$1
-				TerminatedAt=$2
-				State=$3
-				Marshal=$4
+				CreatedAt=$1,
+				TerminatedAt=$2,
+				State=$3,
+				Marshal=$4,
 				PProcessGuid=$5
 				WHERE HostId=$6 and ProcessGuid=$7`
 	stmt, err := conn.GetOrPreparedSmt(query)
@@ -203,7 +203,7 @@ func (conn *DBConn) SaveIOC(ioc *IOCResult) error {
 // GetAllHosts returns all hosts
 func (conn *DBConn) GetAllHosts() ([]*Host, error) {
 	hosts := make([]*Host, 0)
-	query := "SELECT HostId,Name,FirstSeen,Active FROM Hosts ORDER BY Id"
+	query := "SELECT HostId, Name, FirstSeen, Active FROM Hosts ORDER BY Id"
 	rows, err := conn.db.Query(query)
 	if err != nil {
 		return nil, err
@@ -229,7 +229,11 @@ func (conn *DBConn) GetProcessesByHost(hostId string) ([]*Process, error) {
 	procs := make([]*Process, 0)
 	query := `SELECT ProcessGuid, CreatedAt, TerminatedAt, State, ProcessId, Image, Marshal, PProcessGuid
 				FROM Processes WHERE HostId=$1 ORDER BY Id`
-	rows, err := conn.db.Query(query, hostId)
+	stmt, err := conn.GetOrPreparedSmt(query)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := stmt.Query(hostId, hostId)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +260,11 @@ func (conn *DBConn) GetProcessesByHost(hostId string) ([]*Process, error) {
 func (conn *DBConn) GetFeaturesByProcess(hostId, processGuid string) ([]*MitreATTCKResult, error) {
 	features := make([]*MitreATTCKResult, 0)
 	query := "SELECT Timestamp, IsAlert, Context, Message, TechniqueId FROM Features WHERE HostId=$1 and ProcessGuid=$2 ORDER BY Id"
-	rows, err := conn.db.Query(query, hostId, processGuid)
+	stmt, err := conn.GetOrPreparedSmt(query)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := stmt.Query(hostId, hostId)
 	if err != nil {
 		return nil, err
 	}
@@ -304,4 +312,65 @@ func (conn *DBConn) GetAllIOCs() ([]*IOCResult, error) {
 		return nil, err
 	}
 	return iocs, nil
+}
+
+func (conn *DBConn) GetAlertsOrderByTimestampDesc() ([]*MitreATTCKResult, error) {
+	alerts := make([]*MitreATTCKResult, 0)
+	query := "SELECT HostId, ProcessGuid, Timestamp, IsAlert, Context, Message, " +
+		"TechniqueId FROM Features WHERE IsAlert ORDER BY Timestamp DESC"
+	rows, err := conn.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var context, techID string
+		fea := new(MitreATTCKResult)
+		if err := rows.Scan(&fea.HostId, &fea.ProcessGuid, &fea.Timestamp, &fea.IsAlert, &context, &fea.Message,
+			&techID); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(context), &fea.Context); err != nil {
+			return nil, err
+		}
+		fea.Technique = Techniques[techID]
+		alerts = append(alerts, fea)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return alerts, nil
+}
+
+func (conn *DBConn) GetProcessActivities(hostId, processGuid string) ([]*MitreATTCKResult, error) {
+	alerts := make([]*MitreATTCKResult, 0)
+	query := "SELECT Timestamp, IsAlert, Context, Message, " +
+		"TechniqueId FROM Features WHERE IsAlert and HostId=$1 and ProcessGuid=$2 ORDER BY Timestamp"
+	stmt, err := conn.GetOrPreparedSmt(query)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := stmt.Query(hostId, hostId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var context, techID string
+		fea := new(MitreATTCKResult)
+		if err := rows.Scan(&fea.Timestamp, &fea.IsAlert, &context, &fea.Message, &techID); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(context), &fea.Context); err != nil {
+			return nil, err
+		}
+		fea.HostId = hostId
+		fea.ProcessGuid = processGuid
+		fea.Technique = Techniques[techID]
+		alerts = append(alerts, fea)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return alerts, nil
 }

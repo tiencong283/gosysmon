@@ -145,6 +145,9 @@ func NewEngine(configFilePath string) (*Engine, error) {
 	if err := engine.FilterEngine.Register(NewIOCFilter()); err != nil {
 		return nil, err
 	}
+	if err := engine.FilterEngine.Register(NewTimestompFilter()); err != nil {
+		return nil, err
+	}
 	// signal handling
 	engine.TermChan = make(chan os.Signal, 64)
 	signal.Notify(engine.TermChan, os.Interrupt, syscall.SIGTERM)
@@ -253,6 +256,7 @@ func (engine *Engine) StartWebApp() {
 	apiGroup.POST("process", engine.HostManager.ProcessHandler)
 	apiGroup.POST("process-tree", engine.HostManager.ProcessTreeHandler)
 	apiGroup.GET("activity-log", engine.AllLogHandler)
+	apiGroup.GET("process-activities", engine.HostManager.ProcessActivityHandler)
 
 	go func() {
 		if err := router.Run(endpoint); err != nil {

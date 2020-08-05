@@ -189,3 +189,17 @@ func init() {
 		privateIpNets = append(privateIpNets, ipNet)
 	}
 }
+
+// HasPrefixIgnoreCase tests whether the string s begins with prefix under case-insensitivity
+func HasPrefixIgnoreCase(s, prefix string) bool {
+	return len(s) >= len(prefix) && strings.EqualFold(s[0:len(prefix)], prefix)
+}
+
+func SliceContainsIgnoreCase(s []string, check string) bool {
+	for _, prefix := range s {
+		if strings.EqualFold(check, prefix) {
+			return true
+		}
+	}
+	return false
+}

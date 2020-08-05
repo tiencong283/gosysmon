@@ -5,6 +5,7 @@
             https://docs.microsoft.com/en-us/windows-server/networking/technologies/netsh/netsh-interface-portproxy#add-v4tov4
             https://docs.microsoft.com/en-us/windows/security/threat-protection/microsoft-defender-atp/configure-proxy-internet
             https://dannyda.com/2019/12/13/how-to-change-windows-proxy-settings-using-cmd-command-prompt-registry-cmd-bat/?__cf_chl_captcha_tk__=b0d0bd701e459874942cc96a582072337b3e9883-1591757290-0-ARz6NGBGwWFAX4EW2WuafFxilQ04F8Dntra3FJQYgxtCCT2KEHgT16GGc_lroOxWYfCMdytGLlz0-JHXgi6jmVEpav2CiDbR7TnWNSC595M87ks3RH-ElgqmkducFPU6a9N8_PAPjWGQvr3FdCgaqsqYFxzvU2UIVd8-Pa95NDKz-9W99d-vsZ-Z1rUojGS_6BOluCXvHwkBT3Kd7mhOl2kqeolZvcxlCV79dX_C5dwgicgcetRuvKR7_ou4zQ5SBKnZiHOLiToFjfsgyTqVuruEALIacFghx2kCi3kP-c976ZjVLwnJXAv81Z2-xYn2IWVE8Q5W88D4XM15XnEDGxhi_h-ngZj2IEm5U0GZTm9eqTC_fG3gT650yIKN1G57In69_xcLg7f6igkEor6sB6C_j3B0aqYQ4MkxAf5sg5x24TYj_W2zjOBYup6_OOsxBlaXJv2xWdVdo_fOsfm3MfQ5H1OCAJzbNDuEmzB3zwAVLZjDXM-fi5zfZXPS6MqDxNHKel84wrBRxZsORT7ZVfOjCFf4yUnYMqotPseKxClijaLFmYxwfuS7hWEs-d6TNh8ydGM9v59zV104lG36IF0KZEpusbITVWNPrL5xXV0B
+            https://support.microsoft.com/en-us/help/819961/how-to-configure-client-proxy-server-settings-by-using-a-registry-file
             https://support.microsoft.com/en-us/help/4494447/use-group-policy-to-apply-winhttp-proxy-settings-to-clients
         List:
             HKLM\SYSTEM\CurrentControlSet\Services\PortProxy
@@ -26,7 +27,11 @@
                     <TargetObject condition="begin with">HKLM\System\CurrentControlSet\Services\PortProxy\v4tov4\tcp</TargetObject>
                     <TargetObject condition="is">HKLM\Software\Policies\Microsoft\Windows\DataCollection\TelemetryProxyServer</TargetObject>
                     <TargetObject condition="is">HKLM\Software\Policies\Microsoft\Windows\DataCollection\DisableEnterpriseAuthProxy</TargetObject>
-                    <TargetObject condition="begin with">HKU\Software\Microsoft\Windows\CurrentVersion\Internet Settings</TargetObject>
+                    <TargetObject condition="is">HKU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ProxyEnable</TargetObject>
+                    <TargetObject condition="is">HKU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ProxyServer</TargetObject>
+                    <TargetObject condition="is">HKU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ProxyOverride</TargetObject>
+                    <TargetObject condition="is">HKU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\MigrateProxy</TargetObject>
+                    <TargetObject condition="is">HKU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ProxyHttp1.1</TargetObject>
                 </Rule>
                 <Rule name="technique_id=T1090" groupRelation="and">
                 	<TargetObject condition="is">HKLM\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Connections\WinHttpSettings</TargetObject>

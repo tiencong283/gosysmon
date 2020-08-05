@@ -11,7 +11,7 @@ func NewTemplateFilter() *IOCFilter {
 	}
 }
 
-func (filter *TemplateFilter) IsSupported(event *SysmonEvent) bool {
+func (filter *TemplateFilter) IsSupported(msg *Message) bool {
 	return false
 }
 
@@ -19,7 +19,7 @@ func (filter *TemplateFilter) Init() error {
 	return nil
 }
 
-func (filter *TemplateFilter) EventCh() chan *Message {
+func (filter *TemplateFilter) MessageCh() chan *Message {
 	return filter.messageCh
 }
 
