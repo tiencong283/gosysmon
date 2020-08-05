@@ -35,6 +35,8 @@ func (ee *PreprocessorEngine) Transform(msg *Message) error {
 }
 
 // extractor implementations
+
+// RegistryProcessor converts "HKU\<user-identity>\..." to "HKU\..."
 type RegistryProcessor struct {
 }
 

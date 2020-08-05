@@ -186,13 +186,27 @@ class ProcessImageFile extends React.Component {
         ]
     }
 
-    render() {
+    renderHashes() {
         let proc = this.props.proc
+        if (!proc || !proc.Hashes) {
+            return
+        }
         return (
             <div>
                 <p><span className="pinfo-key">MD5:</span><span>{proc.Hashes.MD5}</span></p>
                 <p><span className="pinfo-key">SHA256:</span><span>{proc.Hashes.SHA256}</span></p>
                 <p><span className="pinfo-key">SHA1:</span><span>{proc.Hashes.SHA1}</span></p>
+            </div>
+        )
+    }
+
+    render() {
+        let proc = this.props.proc
+        return (
+            <div>
+                {
+                    this.renderHashes()
+                }
                 {
                     this.fileProps.map(function (prop) {
                         return <p><span className="pinfo-key">{prop[0]}</span><span>{proc[prop[1]]}</span></p>

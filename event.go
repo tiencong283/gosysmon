@@ -116,6 +116,31 @@ func (event *SysmonEvent) timestamp() *time.Time {
 	return &ts
 }
 
+// workaround for inconsistency between events, should it be done in preprocessor ?
+func (event *SysmonEvent) getProcessId() string {
+	switch event.EventID {
+	case ECreateRemoteThread, EProcessAccess:
+		return event.get("SourceProcessId")
+	}
+	return event.get("ProcessId")
+}
+
+func (event *SysmonEvent) getProcessGUID() string {
+	switch event.EventID {
+	case ECreateRemoteThread, EProcessAccess:
+		return event.get("SourceProcessGUID")
+	}
+	return event.get("ProcessGuid")
+}
+
+func (event *SysmonEvent) getImage() string {
+	switch event.EventID {
+	case ECreateRemoteThread, EProcessAccess:
+		return event.get("SourceImage")
+	}
+	return event.get("Image")
+}
+
 // isSystemEvent returns true if the event's scope is the system wide
 func (event *SysmonEvent) isSystemEvent() bool {
 	switch event.EventID {
