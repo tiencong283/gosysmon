@@ -1,0 +1,44 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1057/
+            https://docs.microsoft.com/is-is/windows-server/administration/windows-commands/qprocess
+            https://docs.microsoft.com/is-is/windows-server/administration/windows-commands/query-process
+            https://docs.microsoft.com/en-us/sysinternals/downloads/pslist
+            
+        List:
+        Todo:
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1057/T1057.md
+    -->
+
+    <EventFiltering>
+        <RuleGroup  groupRelation="or">
+            <ProcessCreate onmatch="include">
+                <Rule name="technique_id=T1057" groupRelation="or">
+                    <OriginalFileName condition="is">tasklist.exe</OriginalFileName>
+                    <OriginalFileName condition="is">taskmgr.exe</OriginalFileName>
+                    <OriginalFileName condition="is">qprocess.exe</OriginalFileName>
+                    <OriginalFileName condition="is">pslist.exe</OriginalFileName>
+                    <OriginalFileName condition="is">pslist64.exe</OriginalFileName>
+                    <OriginalFileName condition="is">PsInfo.exe</OriginalFileName>
+                    <OriginalFileName condition="is">PsInfo64.exe</OriginalFileName>
+                </Rule>
+                <Rule name="technique_id=T1057" groupRelation="and">
+                    <OriginalFileName condition="is">query.exe</OriginalFileName>
+                    <CommandLine condition="begin with">query process</CommandLine>
+                </Rule>
+                <Rule name="technique_id=T1057" groupRelation="and">
+                    <OriginalFileName condition="is">query.exe</OriginalFileName>
+                    <CommandLine condition="begin with">"C:\Windows\system32\query.exe" process</CommandLine>
+                </Rule>
+            </ProcessCreate>
+            <RegistryEvent onmatch="include">
+                <Rule name="technique_id=T1057" groupRelation="or">
+                    <TargetObject condition="begin with">HKU\SOFTWARE\Sysinternals\PsList</TargetObject>
+                    <TargetObject condition="begin with">HKU\SOFTWARE\Sysinternals\PsInfo</TargetObject>
+                </Rule>
+            </RegistryEvent>
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>

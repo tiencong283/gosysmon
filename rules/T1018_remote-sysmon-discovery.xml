@@ -1,0 +1,46 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1018/
+            https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/cc731935(v=ws.11)
+        List:
+            net view
+            net group Domain Computers
+            nltest
+            ping sweep
+            arp
+            nslookup
+        Todo:
+            get a listing of other systems by IP address, hostname, or other logical identifier on a network that may be used for Lateral Movement from the current system.
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1018/T1018.md
+        Marking troubles:
+            some endpoint mark 2 space command instead of 1 when using net utility
+    -->
+
+    <EventFiltering>
+        <RuleGroup  groupRelation="or">
+            <ProcessCreate onmatch="include">
+                <Rule name="technique_id=T1018" groupRelation="or">
+                    <CommandLine condition="contains">C:\Windows\System32\drivers\etc\hosts</CommandLine>
+                    <CommandLine condition="contains">net view</CommandLine>
+                    <CommandLine condition="contains">net group</CommandLine>
+                    <CommandLine condition="contains">net  view</CommandLine>
+                    <CommandLine condition="contains">net group</CommandLine>
+                    <OriginalFileName condition="is">ping.exe</OriginalFileName>
+                    <OriginalFileName condition="is">arp.exe</OriginalFileName>
+                    <OriginalFileName condition="is">nslookup.exe</OriginalFileName>
+                </Rule>
+                <Rule name="technique_id=T1018" groupRelation="or">
+                    <OriginalFileName condition="is">nltestrk.exe</OriginalFileName>
+                    <CommandLine condition="contains">/dclist</CommandLine>
+                </Rule>
+            </ProcessCreate> 
+            <!-- <RegistryEvent onmatch="include">
+                <Rule name="technique_id=T1018" groupRelation="or">
+                    <TargetObject condition="begin with">HKLM\System\CurrentControlSet\Services\Tcpip\Parameters</TargetObject>
+                </Rule>
+            </RegistryEvent> -->
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>

@@ -1,0 +1,28 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1012/
+        List:
+        Todo:
+            Query registry to gather information about the system, configuration, and installed software.
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1012/T1012.md
+    -->
+    <EventFiltering>
+        <RuleGroup groupRelation="and">
+            <ProcessCreate onmatch="include">
+                <OriginalFileName condition="is">reg.exe</OriginalFileName>
+                <Rule name="technique_id=T1012" groupRelation="or">
+                    <CommandLine condition="contains">reg query</CommandLine>
+                    <CommandLine condition="contains">reg.exe query</CommandLine>
+                    <CommandLine condition="contains">"C:\Windows\system32\reg.exe" query</CommandLine>
+                </Rule>
+            </ProcessCreate>
+        </RuleGroup>
+        <!-- <RuleGroup groupRelation="or">
+            <ProcessAccess onmatch="include">
+                <TargetImage condition="is">C:\Windows\system32\reg.exe</TargetImage>
+            </ProcessAccess>
+        </RuleGroup> -->
+    </EventFiltering>
+</Sysmon>

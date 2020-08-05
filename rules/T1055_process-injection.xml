@@ -1,0 +1,24 @@
+    <!--
+        References: 
+            https://attack.mitre.org/versions/v7/techniques/T1055/
+        List:
+        Todo:
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1055/T1055.md
+    -->
+
+<Sysmon schemaversion="4.30">
+    <EventFiltering>
+        <RuleGroup groupRelation="or">
+            <ProcessCreate onmatch="include">
+                <Rule name="technique_id=T1055" groupRelation="or">
+                    <OriginalFileName condition="is">mavinject.exe</OriginalFileName>
+                    <OriginalFileName condition="is">mavinject32.exe</OriginalFileName>
+                    <OriginalFileName condition="is">mavinject64.exe</OriginalFileName>
+                </Rule>
+            </ProcessCreate>
+            <CreateRemoteThread onmatch="exclude"></CreateRemoteThread>
+            <PipeEvent onmatch="exclude"></PipeEvent>
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>

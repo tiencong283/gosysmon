@@ -1,0 +1,48 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1082/
+            https://docs.microsoft.com/en-us/windows-hardware/drivers/install/hklm-system-currentcontrolset-enum-registry-tree
+
+        List:
+        Todo:
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1082/T1082.md
+    -->
+    <EventFiltering>
+        <RuleGroup groupRelation="or">
+            <ProcessCreate onmatch="include">
+                <Rule name="technique_id=T1082" groupRelation="or">
+                    <OriginalFileName condition="is">sysinfo.exe</OriginalFileName>
+                    <OriginalFileName condition="is">hostname.exe</OriginalFileName>
+                </Rule>
+            </ProcessCreate>
+        </RuleGroup>
+        <RuleGroup groupRelation="or">
+            <ProcessCreate onmatch="include">
+                <Rule name="technique_id=T1082" groupRelation="and">
+                    <OriginalFileName condition="is">reg.exe</OriginalFileName>
+                    <CommandLine condition="contains">HKLM\SYSTEM\CurrentControlSet\Services\Disk\Enum</CommandLine>
+                </Rule>
+                <Rule name="technique_id=T1082" groupRelation="and">
+                    <OriginalFileName condition="is">reg.exe</OriginalFileName>
+                    <CommandLine condition="contains">HKLM\SOFTWARE\Microsoft\Cryptography\MachineGuid</CommandLine>
+                </Rule>
+                <Rule name="technique_id=T1082" groupRelation="and">
+                    <CommandLine condition="contains">"C:\Windows\system32\reg.exe" query</CommandLine>
+                    <CommandLine condition="contains">HKLM\SYSTEM\CurrentControlSet\Services\Disk\Enum</CommandLine>
+                </Rule>
+                <Rule name="technique_id=T1082" groupRelation="and">
+                    <CommandLine condition="contains">"C:\Windows\system32\reg.exe" query</CommandLine>
+                    <CommandLine condition="contains">HKLM\SOFTWARE\Microsoft\Cryptography\MachineGuid</CommandLine>
+                </Rule>
+            </ProcessCreate>
+        </RuleGroup>
+        <RegistryEvent onmatch="include">
+            <Rule name="technique_id=T1082" groupRelation="or">
+                <TargetObject condition="begin with">HKLM\SYSTEM\CurrentControlSet\Services\Disk\Enum</TargetObject>
+                <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Cryptography\MachineGuid</TargetObject>
+            </Rule>
+        </RegistryEvent>
+    </EventFiltering>
+</Sysmon>

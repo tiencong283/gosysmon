@@ -1,0 +1,39 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References: 
+            https://attack.mitre.org/techniques/T1010/
+        List:
+        Todo: 
+            List Process Main Windows - C# .NET
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1010/T1010.md   
+            - install Visual Studio
+            - Run test case:    
+                + Use csc.exe compile execute file
+                + (concern)How to trace what exactly command has .exe file execute?
+    -->
+
+    <EventFiltering>
+        <RuleGroup groupRelation="or">
+            <ProcessCreate onmatch="include">
+                <Rule name="technique_id=T1010" groupRelation="or">
+                    <OriginalFileName condition="is">csc.exe</OriginalFileName>
+                </Rule>
+            </ProcessCreate>
+            <ProcessAccess onmatch="include">
+                <Rule name="technique_id=T1010" groupRelation="or">
+                    <TargetImage condition="end with">csc.exe</TargetImage>
+                </Rule>
+            </ProcessAccess>
+            <FileCreate onmatch="include">
+                <Rule name="technique_id=T1010" groupRelation="and">
+                    <Image condition="image">C:\Windows\System32\svchost.exe</Image>
+                    <TargetFilename condition="begin with">C:\Windows\Prefetch\CSC.EXE</TargetFilename>
+                </Rule>
+                <Rule name="technique_id=T1010" groupRelation="or">
+                    <Image condition="end with">csc.exe</Image>
+                </Rule>
+            </FileCreate>
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>

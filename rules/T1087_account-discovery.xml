@@ -1,0 +1,80 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1087/
+            https://github.com/sense-of-security/ADRecon
+            https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/cmdkey
+        List:
+            Example commands that can acquire this information are net user, net group , and net localgroup using the Net utility or through use of dsquery. If adversaries attempt to identify the primary user, currently logged in user, or set of users that commonly uses a system.
+        Todo:
+            Enumerate all accounts Upon exection
+            Enumerate all accounts via PowerShell
+            Enumerate logged on users via CMD
+            Enumerate logged on users via PowerShell
+            Automated AD Recon (ADRecon)
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1087.001/T1087.001.md
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1087.002/T1087.002.md        
+    -->
+
+    <EventFiltering>
+        <RuleGroup name="technique_id=T1087" groupRelation="and">
+            <ProcessCreate onmatch="include">
+                <OriginalFileName condition="is">net.exe</OriginalFileName>
+                <Rule groupRelation="or">
+                    <CommandLine condition="contains">net user</CommandLine>
+                    <CommandLine condition="contains">net localgroup</CommandLine>
+                </Rule>
+            </ProcessCreate>
+        </RuleGroup>
+
+        <RuleGroup name="technique_id=T1087" groupRelation="and">
+            <ProcessCreate onmatch="include">
+                <OriginalFileName condition="is">net1.exe</OriginalFileName>
+                <Rule groupRelation="or">
+                    <CommandLine condition="contains">net1 user</CommandLine>
+                    <CommandLine condition="contains">net1 localgroup</CommandLine>
+                </Rule>
+            </ProcessCreate>
+        </RuleGroup>
+
+        <!-- <RuleGroup name="technique_id=T1087" groupRelation="and">
+            <FileCreate onmatch="include">
+                <Image condition="image">C:\Windows\System32\svchost.exe</Image>
+                <Rule groupRelation="or">
+                    <TargetFilename condition="begin with">C:\Windows\Prefetch\NET.EXE</TargetFilename>   
+                    <TargetFilename condition="begin with">C:\Windows\Prefetch\NET1.EXE</TargetFilename>   
+                    <TargetFilename condition="begin with">C:\Windows\Prefetch\QUERY.EXE</TargetFilename>   
+                    <TargetFilename condition="begin with">C:\Windows\Prefetch\QUSER.EXE</TargetFilename>   
+                </Rule>
+            </FileCreate>
+        </RuleGroup> -->
+
+        <RuleGroup groupRelation="and">
+            <FileCreate onmatch="include">
+                <Rule name="technique_id=T1087" groupRelation="and">
+                    <Image condition="is">C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Image>
+                    <TargetFilename condition="end with">ADRecon.ps1</TargetFilename>
+                </Rule>
+            </FileCreate>
+        </RuleGroup>
+
+        <RuleGroup groupRelation="or">
+            <ProcessCreate onmatch="include">
+                <Rule name="technique_id=T1087" groupRelation="or">
+                    <OriginalFileName condition="is">query.exe</OriginalFileName>
+                    <OriginalFileName condition="is">quser.exe</OriginalFileName>
+                    <OriginalFileName condition="is">cmdkey.exe</OriginalFileName>
+                </Rule>
+            </ProcessCreate>
+            <!-- <ProcessAccess onmatch="include">
+                <Rule name="technique_id=T1087" groupRelation="or">
+                    <TargetImage condition="is">C:\Windows\system32\net1.exe</TargetImage>
+                    <TargetImage condition="is">C:\Windows\system32\net.exe</TargetImage>
+                    <TargetImage condition="is">C:\Windows\system32\query.exe</TargetImage>
+                    <TargetImage condition="is">C:\Windows\system32\quser.exe</TargetImage>
+                </Rule>
+            </ProcessAccess> -->
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>

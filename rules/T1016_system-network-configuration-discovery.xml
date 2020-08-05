@@ -1,0 +1,84 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References: 
+            https://attack.mitre.org/techniques/T1016/
+            https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/ipconfig
+            https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/ff961510(v=ws.11)
+            https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/tracert
+
+        List: 
+        Todo: 
+            look for details about the network configuration and settings of systems they access or through information discovery of remote systems.
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1016/T1016.md
+    -->
+
+    <EventFiltering>
+        <RuleGroup groupRelation="or">
+            <ProcessCreate onmatch="include">
+                <Rule name="technique_id=T1016" groupRelation="or">
+                    <OriginalFileName condition="is">ipconfig.exe</OriginalFileName>
+                    <OriginalFileName condition="is">tracert.exe</OriginalFileName>
+                    <OriginalFileName condition="is">netsh.exe</OriginalFileName>
+                    <CommandLine condition="contains">net config workstation</CommandLine>
+                    <CommandLine condition="contains">"C:\Windows\system32\net.exe" config workstation</CommandLine>
+                </Rule>
+                <Rule name="technique_id=T1016" groupRelation="and">
+                    <OriginalFileName condition="is">route.exe</OriginalFileName>
+                    <CommandLine condition="contains">print</CommandLine>
+                </Rule>
+                <Rule name="technique_id=T1016" groupRelation="and">
+                    <OriginalFileName condition="is">nbtinfo.exe</OriginalFileName>
+                    <CommandLine condition="contains">/s</CommandLine>
+                </Rule>
+                <Rule name="technique_id=T1016" groupRelation="and">
+                    <OriginalFileName condition="is">nbtinfo.exe</OriginalFileName>
+                    <CommandLine condition="contains">-s</CommandLine>
+                </Rule>
+                <Rule name="technique_id=T1016" groupRelation="and">
+                    <OriginalFileName condition="is">nbtinfo.exe</OriginalFileName>
+                    <CommandLine condition="contains">/n</CommandLine>
+                </Rule>
+                <Rule name="technique_id=T1016" groupRelation="and">
+                    <OriginalFileName condition="is">nbtinfo.exe</OriginalFileName>
+                    <CommandLine condition="contains">-n</CommandLine>
+                </Rule>
+            </ProcessCreate>
+            <ImageLoad onmatch="include">
+                <Rule name="technique_id=T1016" groupRelation="or">
+                    <Image condition="image">C:\Windows\System32\ipconfig.exe</Image>
+                    <Image condition="image">C:\Windows\System32\TRACERT.EXE</Image>
+                    <Image condition="image">C:\Windows\System32\netsh.exe</Image>
+                    <Image condition="image">C:\Windows\System32\ROUTE.EXE</Image>
+                    <Image condition="image">C:\Windows\System32\nbtstat.exe</Image>
+                </Rule>
+            </ImageLoad>
+            <CreateRemoteThread onmatch="include">
+                <Rule name="technique_id=T1016" groupRelation="or">
+                    <TargetImage condition="is">C:\Windows\System32\TRACERT.EXE</TargetImage>
+                </Rule>
+            </CreateRemoteThread>
+            <ProcessAccess onmatch="include">
+                <Rule name="technique_id=T1016" groupRelation="or">
+                    <TargetImage condition="is">C:\Windows\System32\ipconfig.exe</TargetImage>
+                    <TargetImage condition="is">C:\Windows\System32\TRACERT.EXE</TargetImage>
+                    <TargetImage condition="is">C:\Windows\System32\netsh.exe</TargetImage>
+                    <TargetImage condition="is">C:\Windows\System32\ROUTE.EXE</TargetImage>
+                    <TargetImage condition="is">C:\Windows\System32\nbtstat.exe</TargetImage>
+                </Rule>
+            </ProcessAccess>
+            <RegistryEvent onmatch="include">
+                <Rule name="technique_id=T1016" groupRelation="or">
+                    <Image condition="image">C:\Windows\System32\TRACERT.EXE</Image>
+                    <Image condition="image">C:\Windows\System32\netsh.exe</Image>
+                </Rule>
+            </RegistryEvent>
+            <DnsQuery onmatch="include">
+                <Rule name="technique_id=T1016" groupRelation="or">
+                    <Image condition="image">C:\Windows\System32\TRACERT.EXE</Image>
+                </Rule>
+            </DnsQuery>
+            
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>

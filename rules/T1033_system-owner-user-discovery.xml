@@ -1,0 +1,70 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1033/
+            https://support.microsoft.com/en-za/help/300887/description-of-microsoft-system-information-msinfo32-tool
+            https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/syste
+            https://docs.microsoft.com/en-us/sysinternals/downloads/psgetsid
+            https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/qwinsta
+        List:
+        Todo:
+
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1033/T1033.md  
+    -->
+
+    <EventFiltering>
+        <RuleGroup name="" groupRelation="or">
+            <ProcessCreate onmatch="include">
+                <Rule name="technique_id=T1033" groupRelation="or">
+                    <OriginalFileName condition="is">whoami.exe</OriginalFileName>
+                    <OriginalFileName condition="is">msinfo.dll</OriginalFileName>
+                    <OriginalFileName condition="is">qwinsta.exe</OriginalFileName>
+                    <OriginalFileName condition="is">quser.exe</OriginalFileName>
+                    <OriginalFileName condition="is">PsGetSID.exe</OriginalFileName>
+                    <OriginalFileName condition="is">PsLoggedOn.exe</OriginalFileName>
+                    <OriginalFileName condition="is">LogonSessions.exe</OriginalFileName>
+                </Rule>
+                <Rule name="technique_id=T1033" groupRelation="and">
+                    <OriginalFileName condition="is">nltest.exe</OriginalFileName>
+                    <CommandLine condition="contains">/whowill</CommandLine>
+                </Rule>
+                <Rule name="technique_id=T1033" groupRelation="and">
+                    <OriginalFileName condition="is">nltest.exe</OriginalFileName>
+                    <CommandLine condition="contains">/finduser</CommandLine>
+                </Rule>
+                <Rule name="technique_id=T1033" groupRelation="and">
+                    <OriginalFileName condition="is">nltest.exe</OriginalFileName>
+                    <CommandLine condition="contains">/user</CommandLine>
+                </Rule>
+            </ProcessCreate>
+            <!-- <ImageLoad name="technique_id=T1033" onmatch="include">
+                <Rule groupRelation="or">
+                    <Image condition="is">C:\Windows\System32\msinfo32.exe</Image>
+                    <Image condition="is">C:\Windows\System32\systeminfo.exe</Image>
+                    <Image condition="is">C:\Windows\System32\qwinsta.exe</Image>
+                    <Image condition="is">C:\Windows\System32\quser.exe</Image>
+                    <Image condition="is">C:\Windows\System32\nltest.exe</Image>
+                </Rule>
+            </ImageLoad>
+            <ProcessAccess name="technique_id=T1033" onmatch="include">
+                <Rule groupRelation="or">
+                    <TargetImage condition="is">C:\Windows\system32\msinfo32.exe</TargetImage>
+                    <TargetImage condition="is">C:\Windows\system32\systeminfo.exe</TargetImage>
+                    <TargetImage condition="is">C:\Windows\system32\qwinsta.exe</TargetImage>
+                    <TargetImage condition="is">C:\Windows\system32\quser.exe</TargetImage>
+                    <TargetImage condition="is">C:\Windows\system32\nltest.exe</TargetImage>
+                </Rule>
+            </ProcessAccess> -->
+            <RegistryEvent onmatch="include">
+                <Rule name="technique_id=T1033" groupRelation="or">
+                    <TargetObject condition="end with">\PsGetSID\EulaAccepted</TargetObject>
+                    <TargetObject condition="end with">\PsGetSID64\EulaAccepted</TargetObject>
+                    <TargetObject condition="end with">\PsLoggedOn\EulaAccepted</TargetObject>
+                    <TargetObject condition="end with">\PsLoggedOn64\EulaAccepted</TargetObject>
+                    <TargetObject condition="end with">\LogonSessions\EulaAccepted</TargetObject>
+                </Rule>
+            </RegistryEvent> 
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>

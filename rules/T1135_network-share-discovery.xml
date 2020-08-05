@@ -1,0 +1,52 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1135/
+            https://docs.microsoft.com/en-us/powershell/module/smbshare/get-smbshare?view=win10-ps
+        List:
+            File sharing over a Windows network occurs over the SMB(Server Message Block) protocol.Net can be used to query a remote system for available shared drives using the net view \remotesystem command. It can also be used to query shared drives on the local system using net share.
+        Todo:
+            Network Share Discovery command prompt
+            Network Share Discovery PowerShell
+            View available share drives
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1135/T1135.md
+        Marking troubles:
+            some endpoint mark 2 space command instead of 1 when using net utility
+    -->
+
+    <EventFiltering>
+        <RuleGroup name="technique_id=T1135" groupRelation="and">
+            <ProcessCreate onmatch="include">
+                <OriginalFileName condition="is">net.exe</OriginalFileName>
+                <Rule groupRelation="or">
+                    <CommandLine condition="contains">net share</CommandLine>
+                    <CommandLine condition="contains">net  share</CommandLine>
+                    <CommandLine condition="contains">net view</CommandLine>
+                    <CommandLine condition="contains">net  view</CommandLine>
+                    <CommandLine condition="contains">"C:\Windows\system32\net.exe" share</CommandLine>
+                    <CommandLine condition="contains">"C:\Windows\system32\net.exe" view</CommandLine>
+                </Rule>
+                
+            </ProcessCreate> 
+        </RuleGroup>
+        <!-- <RuleGroup name="" groupRelation="or">
+            <ProcessAccess onmatch="include">
+                <Rule name="technique_id=T1135" groupRelation="or">
+                    <TargetImage condition="is">C:\Windows\system32\net.exe</TargetImage>
+                </Rule>
+            </ProcessAccess> 
+            <FileCreate onmatch="include">
+                <Rule name="technique_id=T1135" groupRelation="and">
+                    <Image condition="is">C:\Windows\System32\svchost.exe</Image>                    
+                    <TargetFilename condition="begin with">C:\Windows\Prefetch\NET.EXE</TargetFilename>
+                </Rule>
+            </FileCreate>
+            <PipeEvent onmatch="include">
+                <Rule name="technique_id=T1135" groupRelation="or">
+                    <Image condition="is">C:\Windows\system32\net.exe</Image>                    
+                </Rule>
+            </PipeEvent>
+        </RuleGroup> -->
+    </EventFiltering>
+</Sysmon>
