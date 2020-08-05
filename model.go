@@ -328,8 +328,8 @@ func (hm *HostManager) OnIOCAlert(ioc *IOCResult) {
 func (hm *HostManager) OnProcessEvent(msg *Message) {
 	event := msg.Event
 	host := hm.GetOrCreateHost(msg)
-	processId := event.get("ProcessId")
-	processGuid := event.get("ProcessGuid")
+	processId := event.getProcessId()
+	processGuid := event.getProcessGUID()
 
 	switch event.EventID {
 	case EProcessCreate:
@@ -347,12 +347,12 @@ func (hm *HostManager) OnProcessEvent(msg *Message) {
 		var proc *Process
 		if proc = host.GetProcess(processGuid); proc != nil && proc.Abandoned { // ProcessCreate events may come after other
 			// events
-			proc.Image = event.get("Image")
+			proc.Image = event.getImage()
 			proc.CommandLine = event.get("CommandLine")
 			proc.Abandoned = false
 			shouldUpdate = true
 		} else {
-			proc = host.AddProcess(false, processGuid, processId, event.get("Image"), event.get("CommandLine"))
+			proc = host.AddProcess(false, processGuid, processId, event.getImage(), event.get("CommandLine"))
 		}
 
 		proc.CreatedAt = event.timestamp()
@@ -387,7 +387,7 @@ func (hm *HostManager) OnProcessEvent(msg *Message) {
 	default:
 		var proc *Process
 		if proc = host.GetProcess(processGuid); proc == nil {
-			proc = host.AddProcess(true, processGuid, processId, event.get("Image"), "")
+			proc = host.AddProcess(true, processGuid, processId, event.getImage(), "")
 			if err := host.SaveProc(proc); err != nil {
 				hm.logger.Warnf("cannot persist the proc, %s\n", err)
 			}
