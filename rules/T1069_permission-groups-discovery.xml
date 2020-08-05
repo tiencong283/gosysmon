@@ -18,12 +18,8 @@
             <ProcessCreate onmatch="include">
                 <OriginalFileName condition="is">net.exe</OriginalFileName>
                 <Rule groupRelation="or">
-                    <CommandLine condition="contains">net group</CommandLine>
-                    <CommandLine condition="contains">net localgroup</CommandLine>
-                    <CommandLine condition="contains">net  group</CommandLine>
-                    <CommandLine condition="contains">net  localgroup</CommandLine>
-                    <CommandLine condition="contains">"C:\Windows\system32\net.exe" group</CommandLine>
-                    <CommandLine condition="contains">"C:\Windows\system32\net.exe" localgroup</CommandLine>
+                    <CommandLine condition="contains">group</CommandLine>
+                    <CommandLine condition="contains">localgroup</CommandLine>
                 </Rule>
             </ProcessCreate> 
         </RuleGroup>

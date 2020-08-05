@@ -20,12 +20,8 @@
             <ProcessCreate onmatch="include">
                 <OriginalFileName condition="is">net.exe</OriginalFileName>
                 <Rule groupRelation="or">
-                    <CommandLine condition="contains">net share</CommandLine>
-                    <CommandLine condition="contains">net  share</CommandLine>
-                    <CommandLine condition="contains">net view</CommandLine>
-                    <CommandLine condition="contains">net  view</CommandLine>
-                    <CommandLine condition="contains">"C:\Windows\system32\net.exe" share</CommandLine>
-                    <CommandLine condition="contains">"C:\Windows\system32\net.exe" view</CommandLine>
+                    <CommandLine condition="contains">share</CommandLine>
+                    <CommandLine condition="contains">view</CommandLine>
                 </Rule>
                 
             </ProcessCreate> 

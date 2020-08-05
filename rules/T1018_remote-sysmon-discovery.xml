@@ -25,8 +25,8 @@
                     <CommandLine condition="contains">C:\Windows\System32\drivers\etc\hosts</CommandLine>
                     <CommandLine condition="contains">net view</CommandLine>
                     <CommandLine condition="contains">net group</CommandLine>
-                    <CommandLine condition="contains">net  view</CommandLine>
-                    <CommandLine condition="contains">net group</CommandLine>
+                    <!-- <CommandLine condition="contains">net  view</CommandLine>
+                    <CommandLine condition="contains">net group</CommandLine> -->
                     <OriginalFileName condition="is">ping.exe</OriginalFileName>
                     <OriginalFileName condition="is">arp.exe</OriginalFileName>
                     <OriginalFileName condition="is">nslookup.exe</OriginalFileName>

@@ -11,11 +11,9 @@
     <EventFiltering>
         <RuleGroup groupRelation="and">
             <ProcessCreate onmatch="include">
-                <OriginalFileName condition="is">reg.exe</OriginalFileName>
-                <Rule name="technique_id=T1012" groupRelation="or">
-                    <CommandLine condition="contains">reg query</CommandLine>
-                    <CommandLine condition="contains">reg.exe query</CommandLine>
-                    <CommandLine condition="contains">"C:\Windows\system32\reg.exe" query</CommandLine>
+                <Rule name="technique_id=T1012" groupRelation="and">
+                    <OriginalFileName condition="is">reg.exe</OriginalFileName>
+                    <CommandLine condition="contains">query</CommandLine>
                 </Rule>
             </ProcessCreate>
         </RuleGroup>
