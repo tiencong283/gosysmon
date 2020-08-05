@@ -1,0 +1,45 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1069/
+            https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/cc754051(v=ws.11)
+        List:
+            net group(s) and net localgroup
+        Todo:
+            Find local system or domain-level groups and permissions settings by using net utility.
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/T1003-Pwcollector/atomics/T1069/T1069.md
+        Marking trouble:
+            some endpoint mark 2 space command instead of 1 when using net utility
+    -->
+
+    <EventFiltering>
+        <RuleGroup name="technique_id=T1069" groupRelation="and">
+            <ProcessCreate onmatch="include">
+                <OriginalFileName condition="is">net.exe</OriginalFileName>
+                <Rule groupRelation="or">
+                    <CommandLine condition="contains">group</CommandLine>
+                    <CommandLine condition="contains">localgroup</CommandLine>
+                </Rule>
+            </ProcessCreate> 
+        </RuleGroup>
+        <!-- <RuleGroup name="" groupRelation="or">
+            <ProcessAccess onmatch="include">
+                <Rule name="technique_id=T1069" groupRelation="or">
+                    <TargetImage condition="is">C:\Windows\system32\net.exe</TargetImage>
+                </Rule>
+            </ProcessAccess> 
+            <FileCreate onmatch="include">
+                <Rule name="technique_id=T1069" groupRelation="and">
+                    <Image condition="is">C:\Windows\System32\svchost.exe</Image>                    
+                    <TargetFilename condition="begin with">C:\Windows\Prefetch\NET.EXE</TargetFilename>
+                </Rule>
+            </FileCreate>
+            <PipeEvent onmatch="include">
+                <Rule name="technique_id=T1069" groupRelation="or">
+                    <Image condition="is">C:\Windows\system32\net.exe</Image>                    
+                </Rule>
+            </PipeEvent>
+        </RuleGroup> -->
+    </EventFiltering>
+</Sysmon>

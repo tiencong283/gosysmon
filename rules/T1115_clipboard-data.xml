@@ -1,0 +1,26 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1115/
+            https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/clip
+        List:
+        Todo:
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1115/T1115.md
+    -->
+    <EventFiltering>
+        <RuleGroup groupRelation="or">
+            <ProcessCreate onmatch="include">
+                <Rule name="technique_id=T1115" groupRelation="or">
+                    <OriginalFileName condition="is">clip.exe</OriginalFileName>
+                </Rule>
+            </ProcessCreate>
+            <!-- <ProcessAccess onmatch="include">
+                <Rule name="technique_id=T1115" groupRelation="or">
+                    <TargetImage condition="is">C:\Windows\system32\clip.exe</TargetImage>
+                </Rule>
+            </ProcessAccess> -->
+        </RuleGroup>
+       
+    </EventFiltering>
+</Sysmon>

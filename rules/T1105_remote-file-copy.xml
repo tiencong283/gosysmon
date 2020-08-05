@@ -1,0 +1,69 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1105/
+            
+            https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/certutil
+            https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/bitsadmin-transfer
+            https://docs.microsoft.com/en-us/dotnet/api/system.net.webclient.downloadfile?view=netcore-3.1
+            https://docs.microsoft.com/en-us/dotnet/standard/io/file-path-formats#unc-paths
+        List:
+        Todo:
+            try remote copy file by: 
+                rsync remote file copy (push/push) using cwrsync for Windows
+                WinSCP remote file copy(pull/push with scp,sftp,ftp)
+                certutil download (urlcache)
+                certutil download (verifyctl)
+                Windows - BITSAdmin BITS Download
+                Windows - PowerShell Download
+                (not covered) OSTAP Worming Activity
+                (not covered)svchost writing a file to a UNC(Universal Naming Convention) path, with form UNC "\\computer_name\share_name[\sub_directory]"
+
+        Testing:
+           https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1105/T1105.md 
+    -->
+
+    <EventFiltering>
+        <RuleGroup name="" groupRelation="or">
+            <ProcessCreate onmatch="include">
+                <Rule name="technique_id=T1105" groupRelation="or">
+                    <OriginalFileName condition="is">certutil.exe</OriginalFileName>
+                    <OriginalFileName condition="is">bitsadmin.exe</OriginalFileName>
+                    <Image condition="end with">rsync.exe</Image>
+                    <OriginalFileName condition="is">winscp.exe</OriginalFileName>
+                </Rule>
+            </ProcessCreate> 
+            <ProcessAccess onmatch="include">
+                <Rule name="technique_id=T1105" groupRelation="or">
+                    <TargetImage condition="is">C:\Windows\system32\certutil.exe</TargetImage>
+                    <TargetImage condition="is">C:\Windows\system32\bitsadmin.exe</TargetImage>
+                    <TargetImage condition="end with">rsync.exe</TargetImage>
+                    <TargetImage condition="is">C:\Program Files\WinSCP\WinSCP.exe</TargetImage>
+                </Rule>
+            </ProcessAccess> 
+            <FileCreate onmatch="include">
+                <Rule name="technique_id=T1105" groupRelation="or">
+                    <Image condition="is">C:\Program Files\WinSCP\WinSCP.exe</Image>                    
+                </Rule>
+                <!-- <Rule name="technique_id=T1105" groupRelation="and" >
+                    <Image condition="image">C:\Windows\System32\svchost.exe</Image>
+                    <TargetFilename condition="begin with">C:\Windows\Prefetch\RSYNC.EXE</TargetFilename>
+                </Rule>
+                <Rule name="technique_id=T1105" groupRelation="and" >
+                    <Image condition="image">C:\Windows\System32\svchost.exe</Image>
+                    <TargetFilename condition="begin with">C:\Windows\Prefetch\CERTUTIL.EXE</TargetFilename>
+                </Rule>
+                <Rule name="technique_id=T1105" groupRelation="and" >
+                    <Image condition="image">C:\Windows\System32\svchost.exe</Image>
+                    <TargetFilename condition="begin with">C:\Windows\Prefetch\BITSADMIN.EXE</TargetFilename>
+                </Rule> -->
+            </FileCreate>
+            <RegistryEvent onmatch="include">
+                <Rule name="technique_id=T1105" groupRelation="or">
+                    <Image condition="is">C:\Windows\system32\certutil.exe</Image>
+                    <Image condition="is">C:\Program Files\WinSCP\WinSCP.exe</Image>
+                </Rule>
+            </RegistryEvent>
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>

@@ -1,0 +1,46 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1076/
+            https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/tscon
+            https://jpcertcc.github.io/ToolAnalysisResultSheet/details/mstsc.htm
+            https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/mstsc
+            https://www.processlibrary.com/en/directory/files/rdpclip/25310/
+        List:
+        Todo:
+
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/T1003-Pwcollector/atomics/T1076/T1076.md
+    -->
+
+    <EventFiltering>
+        <RuleGroup name="" groupRelation="or">
+            <ProcessCreate onmatch="include">
+                <Rule name="technique_id=T1076" groupRelation="or">
+                    <OriginalFileName condition="is">mstsc.exe</OriginalFileName>
+                    <OriginalFileName condition="is">tscon.exe</OriginalFileName>
+                    <CommandLine condition="contains">C:\windows\system32\tscon.exe</CommandLine>
+                    <CommandLine condition="contains">cmd.exe /c</CommandLine>
+                    <CommandLine condition="contains">cmd.exe /k</CommandLine>
+                    <CommandLine condition="contains">rdpclip</CommandLine>
+                </Rule>
+            </ProcessCreate> 
+            <NetworkConnect onmatch="include">
+                <Rule name="technique_id=T1076" groupRelation="or">
+                    <Image condition="image">C:\Windows\System32\mstsc.exe</Image>
+                </Rule>
+            </NetworkConnect>
+            <FileCreate onmatch="include">
+                <Rule name="technique_id=T1076" groupRelation="or">
+                    <TargetFilename condition="end with">\AppData\Local\Microsoft\Terminal Server Client\Cache</TargetFilename>
+                </Rule>
+            </FileCreate>
+            <RegistryEvent onmatch="include">
+                <Rule name="technique_id=T1076" groupRelation="or">
+                    <TargetObject condition="begin with">HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services</TargetObject>
+                    <TargetObject condition="begin with">HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\RemoteComputer</TargetObject>
+                </Rule>
+            </RegistryEvent>
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>

@@ -1,0 +1,28 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/versions/v6/techniques/T1119/
+            https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/doskey
+        List:
+            may incorporate use of other techniques such as "File and Directory Discovery" and "Remote File Copy" to identify and move files.
+        Todo:
+            Recon information for export with Command Prompt
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1119/T1119.md        
+    -->
+    <EventFiltering>
+        <RuleGroup groupRelation="or">
+            <ProcessCreate onmatch="include">
+        
+                <Rule name="technique_id=T1119" groupRelation="and">
+                    <OriginalFileName condition="is">doskey.exe</OriginalFileName>
+                    <CommandLine condition="contains">/history</CommandLine>
+                </Rule>
+                <Rule name="technique_id=T1119" groupRelation="and">
+                    <OriginalFileName condition="is">doskey.exe</OriginalFileName>
+                    <CommandLine condition="contains">/macros</CommandLine>
+                </Rule>
+            </ProcessCreate>
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>

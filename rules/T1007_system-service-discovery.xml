@@ -1,0 +1,49 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1007/
+            https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/tasklist
+        List:
+        Todo:
+
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1007/T1007.md    -->
+
+    <EventFiltering>
+        <RuleGroup groupRelation="or">
+            <ProcessCreate onmatch="include">
+                <Rule name="technique_id=T1007" groupRelation="or">
+                    <CommandLine condition="contains">sc query</CommandLine>
+                    <CommandLine condition="contains">sc.exe query</CommandLine>
+                    <CommandLine condition="contains">"C:\Windows\system32\sc.exe" query</CommandLine>
+                    <CommandLine condition="contains">net start</CommandLine>
+                    <CommandLine condition="contains">net.exe start</CommandLine>
+                    <CommandLine condition="contains">"C:\Windows\system32\net.exe" start</CommandLine>
+                    <CommandLine condition="contains">tasklist /svc</CommandLine>
+                </Rule>
+                <Rule name="technique_id=T1007" groupRelation="and">
+                    <OriginalFileName condition="is">psservice.exe</OriginalFileName>
+                    <CommandLine condition="contains">query</CommandLine>
+                </Rule>
+                <Rule name="technique_id=T1007" groupRelation="and">
+                    <OriginalFileName condition="is">psservice.exe</OriginalFileName>
+                    <CommandLine condition="contains">depend</CommandLine>
+                </Rule>  
+                <Rule name="technique_id=T1007" groupRelation="and">
+                    <OriginalFileName condition="is">psservice.exe</OriginalFileName>
+                    <CommandLine condition="contains">security</CommandLine>
+                </Rule>
+                <Rule name="technique_id=T1007" groupRelation="and">
+                    <OriginalFileName condition="is">psservice.exe</OriginalFileName>
+                    <CommandLine condition="contains">find</CommandLine>
+                </Rule>
+            </ProcessCreate>
+            <RegistryEvent onmatch="include">
+                <Rule name="technique_id=T1007" groupRelation="or">
+                    <TargetObject condition="contains">\Sysinternals\PsService</TargetObject>
+                    <TargetObject condition="contains">\Sysinternals\PsService64</TargetObject>
+                </Rule>
+            </RegistryEvent>
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>

@@ -1,0 +1,32 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1107/
+            https://docs.microsoft.com/en-us/sysinternals/downloads/sdelete
+        List:
+        Todo:
+
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1107/T1107.md
+            https://github.com/redcanaryco/atomic-red-team/blob/t1077/atomics/T1107/T1107.md  
+    -->
+
+    <EventFiltering>
+        <RuleGroup name="" groupRelation="or">
+            <ProcessCreate onmatch="include">
+                <Rule name="technique_id=T1107" groupRelation="or">
+                    <OriginalFileName condition="is">sdelete.exe</OriginalFileName>
+                    <OriginalFileName condition="is">sdelete64.exe</OriginalFileName>
+                </Rule>
+            </ProcessCreate>
+            <RegistryEvent onmatch="include">
+                <Rule name="technique_id=T1107" groupRelation="or">
+                    <TargetObject condition="contains">\Sysinternals\sdelete</TargetObject>
+                    <TargetObject condition="contains">\Sysinternals\sdelete64</TargetObject>
+                </Rule>
+            </RegistryEvent>
+            <FileDelete onmatch="exclude">
+            </FileDelete>
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>

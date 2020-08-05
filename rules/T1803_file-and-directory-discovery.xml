@@ -1,0 +1,57 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References: 
+            https://attack.mitre.org/techniques/T1083/
+            https://docs.microsoft.com/en-us/sysinternals/downloads/accesschk
+            https://docs.microsoft.com/en-us/sysinternals/downloads/accessenum
+        List: 
+            dir and tree
+            discovery tree of directories or keys by AccessEnum(Sysinternals)
+            discovery files, directories, Registry keys, global objects and Windows services by AccessChk(Sysinternals)
+        Todo: 
+            Using "dir" and "tree" command to obtain file and directory discovery information 
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1083/T1083.md
+    -->
+
+    <EventFiltering>
+        <RuleGroup groupRelation="or">
+            <ProcessCreate onmatch="include">
+                <Rule name="technique_id=T1083" groupRelation="or">
+                    <OriginalFileName condition="is">tree.com</OriginalFileName>
+                    <OriginalFileName condition="is">accesschk.exe</OriginalFileName>
+                    <OriginalFileName condition="is">accesschk64.exe</OriginalFileName>
+                    <OriginalFileName condition="is">AccessEnum.exe</OriginalFileName>
+                </Rule>
+            </ProcessCreate>
+            <!-- <ProcessAccess onmatch="include">
+                <Rule name="technique_id=T1083" groupRelation="or">
+                    <TargetImage condition="is">C:\Windows\system32\tree.com</TargetImage>
+                    <TargetImage condition="end with">accesschk.exe</TargetImage>
+                    <TargetImage condition="end with">accessenum.exe</TargetImage>
+                </Rule>
+            </ProcessAccess>
+            <FileCreate onmatch="include">
+                <Rule name="technique_id=T1083" groupRelation="and">
+                    <Image condition="image">C:\Windows\System32\svchost.exe</Image>
+                    <TargetFilename condition="begin with">C:\Windows\Prefetch\TREE.EXE</TargetFilename>
+                </Rule>
+                <Rule name="technique_id=T1083" groupRelation="and">
+                    <Image condition="image">C:\Windows\System32\svchost.exe</Image>
+                    <TargetFilename condition="begin with">C:\Windows\Prefetch\ACCESSENUM.EXE</TargetFilename>
+                </Rule>
+                <Rule name="technique_id=T1083" groupRelation="and">
+                    <Image condition="image">C:\Windows\System32\svchost.exe</Image>
+                    <TargetFilename condition="begin with">C:\Windows\Prefetch\ACCESSECHK.EXE</TargetFilename>
+                </Rule>
+            </FileCreate> -->
+            <RegistryEvent onmatch="include">
+                <Rule name="technique_id=T1083" groupRelation="or">
+                    <TargetObject condition="contains">\Sysinternals\AccessEnum</TargetObject>
+                    <TargetObject condition="contains">\Sysinternals\AccessChk</TargetObject>
+                    <TargetObject condition="contains">\Sysinternals\AccessChk64</TargetObject>
+                </Rule>
+            </RegistryEvent>
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>

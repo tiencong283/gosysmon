@@ -1,0 +1,31 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1049/
+            https://docs.microsoft.com/en-us/windows/win32/nativewifi/about-the-wireless-hosted-network
+
+        List:
+        Todo:
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1049/T1049.md
+    -->
+    <EventFiltering>
+        <RuleGroup groupRelation="or">
+            <ProcessCreate onmatch="include">
+                <Rule name="technique_id=T1049" groupRelation="or">
+                    <CommandLine condition="contains">netstat</CommandLine>
+                    <CommandLine condition="contains">net sessions</CommandLine>
+                    <CommandLine condition="contains">net use</CommandLine>
+                    <CommandLine condition="contains">net.exe sessions</CommandLine>
+                    <CommandLine condition="contains">net.exe use</CommandLine>
+                    <CommandLine condition="contains">netsh wlan show</CommandLine>
+                    <CommandLine condition="contains">netsh.exe wlan show</CommandLine>
+                    <CommandLine condition="contains">"C:\Windows\system32\net.exe" sessions</CommandLine>
+                    <CommandLine condition="contains">"C:\Windows\system32\net.exe" use</CommandLine>
+                    <CommandLine condition="contains">"C:\Windows\system32\netsh.exe" wlan show</CommandLine>
+                </Rule>
+            </ProcessCreate>
+        </RuleGroup>
+       
+    </EventFiltering>
+</Sysmon>
