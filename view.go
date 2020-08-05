@@ -2,10 +2,25 @@ package main
 
 import (
 	"fmt"
+	"time"
 )
 
-const viewTimestampFormat = "2006-01-02 15:04:05.000"
-const procRefUrlFormat = `/process?HostId=%s&ProcessGuid=%s`
+const (
+	viewTimestampFormat = "2006-01-02 15:04:05.000"
+	timestampLoc        = "Asia/Ho_Chi_Minh"
+	procRefUrlFormat    = `/process?HostId=%s&ProcessGuid=%s`
+)
+
+func formatTimestamp(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	loc, err := time.LoadLocation(timestampLoc)
+	if err != nil {
+		return ""
+	}
+	return t.In(loc).Format(viewTimestampFormat)
+}
 
 // HostView is the view layer for Host object
 type HostView struct {
@@ -51,7 +66,7 @@ func formatIOCType(iocType int) string {
 func NewIOCView(ioc *IOCResult) *IOCView {
 	return &IOCView{
 		ResultId:    ioc.ResultId,
-		Timestamp:   ioc.Timestamp.Format(viewTimestampFormat),
+		Timestamp:   formatTimestamp(ioc.Timestamp),
 		IOCType:     formatIOCType(ioc.IOCType),
 		Indicator:   ioc.Indicator,
 		Message:     ioc.Message,
@@ -77,7 +92,7 @@ type AlertView struct {
 func (hm *HostManager) NewAlertView(alert *MitreATTCKResult) *AlertView {
 	alertView := &AlertView{
 		ResultId:   alert.ResultId,
-		Timestamp:  alert.Timestamp.Format(viewTimestampFormat),
+		Timestamp:  formatTimestamp(alert.Timestamp),
 		Context:    alert.Context,
 		Message:    alert.Message,
 		Technique:  alert.Technique,
@@ -127,9 +142,11 @@ func formatProcState(procState int) string {
 }
 
 func NewProcessView(proc *Process) *ProcessView {
-	procView := &ProcessView{
+	return &ProcessView{
 		Abandoned:        proc.Abandoned,
 		ProcessGuid:      proc.ProcessGuid,
+		CreatedAt:        formatTimestamp(proc.CreatedAt),
+		TerminatedAt:     formatTimestamp(proc.TerminatedAt),
 		State:            formatProcState(proc.State),
 		ProcessId:        proc.ProcessId,
 		Image:            proc.Image,
@@ -144,13 +161,6 @@ func NewProcessView(proc *Process) *ProcessView {
 		Product:          proc.Product,
 		Company:          proc.Company,
 	}
-	if proc.CreatedAt != nil {
-		procView.CreatedAt = proc.CreatedAt.Format(viewTimestampFormat)
-	}
-	if proc.TerminatedAt != nil {
-		procView.TerminatedAt = proc.TerminatedAt.Format(viewTimestampFormat)
-	}
-	return procView
 }
 
 // ActivityLogView is the view layer for ActivityLog object

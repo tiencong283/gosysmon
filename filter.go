@@ -27,7 +27,7 @@ func NewResultId(msg *Message) ResultId {
 // MitreATTCKResult represents an alert/feature
 type MitreATTCKResult struct {
 	ResultId
-	Timestamp *time.Time
+	Timestamp time.Time
 	IsAlert   bool `json:"-"`
 	Context   map[string]interface{}
 	Message   string
@@ -36,7 +36,7 @@ type MitreATTCKResult struct {
 
 func NewMitreATTCKResult(isAlert bool, techID, message string, msg *Message) *MitreATTCKResult {
 	return &MitreATTCKResult{
-		Timestamp: msg.Event.timestamp(),
+		Timestamp: msg.Event.getTimestamp(),
 		Context:   make(map[string]interface{}),
 		Message:   message,
 		Technique: Techniques[techID],

@@ -6,6 +6,7 @@ import (
 )
 
 const (
+	// Event timestamps are in UTC standard time
 	TimeFormat = "2006-01-02 15:04:05.999999999"
 )
 
@@ -108,12 +109,9 @@ func (event *SysmonEvent) set(name, value string) {
 }
 
 // getters for frequent used fields
-func (event *SysmonEvent) timestamp() *time.Time {
-	ts, err := time.Parse(TimeFormat, event.EventData["UtcTime"])
-	if err != nil {
-		return nil
-	}
-	return &ts
+func (event *SysmonEvent) getTimestamp() time.Time {
+	t, _ := time.Parse(TimeFormat, event.EventData["UtcTime"]) // use zero value for any errors
+	return t
 }
 
 // workaround for inconsistency between events, should it be done in preprocessor ?

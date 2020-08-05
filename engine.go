@@ -263,8 +263,8 @@ func (engine *Engine) StartWebApp() {
 
 // Close cleans up any resources
 func (engine *Engine) Close() {
-	_ = engine.Reader.Close()
-	_ = RedisConn.Close()
+	engine.Reader.Close()
+	RedisConn.Close()
 	PgConn.Close()
 }
 

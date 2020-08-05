@@ -14,7 +14,7 @@ import (
 
 type IOCResult struct {
 	ResultId
-	Timestamp   *time.Time
+	Timestamp   time.Time
 	IOCType     int
 	Indicator   string
 	Message     string
@@ -148,7 +148,7 @@ func (filter *IOCFilter) CheckIOC(indicator string, iocType int) (bool, error) {
 		if err = RedisConn.Send("SET", key, ans); err != nil { // cached in redis
 			return false, err
 		}
-		_ = RedisConn.Flush()
+		RedisConn.Flush()
 		return ans, nil
 	} else if resp.StatusCode == 404 {
 		return false, nil
@@ -221,7 +221,7 @@ func (filter *IOCFilter) Start() {
 				externalUrl = fmt.Sprintf("https://www.virustotal.com/gui/file/%s/detection", indicator)
 			}
 			report := &IOCResult{
-				Timestamp:   event.timestamp(),
+				Timestamp:   event.getTimestamp(),
 				IOCType:     iocType,
 				Indicator:   indicator,
 				Message:     alertMsg,

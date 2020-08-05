@@ -27,8 +27,8 @@ type Process struct {
 	Abandoned   bool   // true if the process not derived from event ProcessCreate
 	ProcessGuid string `json:"-"`
 	// process creation and termination time
-	CreatedAt    *time.Time `json:"-"`
-	TerminatedAt *time.Time `json:"-"`
+	CreatedAt    time.Time `json:"-"`
+	TerminatedAt time.Time `json:"-"`
 	// process state
 	State int `json:"-"`
 	// process info
@@ -64,7 +64,7 @@ func NewProcess() *Process {
 type Host struct {
 	HostId    string
 	Name      string
-	FirstSeen *time.Time
+	FirstSeen time.Time
 	Active    bool
 	Procs     map[string]*Process `json:"-"`
 	ProcsLock sync.Mutex
@@ -75,7 +75,7 @@ func NewHostFrom(msg *Message) *Host {
 	return &Host{
 		HostId:    msg.Agent.ID,
 		Name:      msg.Event.ComputerName,
-		FirstSeen: msg.Event.timestamp(),
+		FirstSeen: msg.Event.getTimestamp(),
 		Active:    true,
 		Procs:     make(map[string]*Process, 10000),
 	}
@@ -143,7 +143,7 @@ func (host *Host) UpdateProc(proc *Process) error {
 }
 
 // UpdateProcTerm updates process state to stopped and save into db
-func (host *Host) UpdateProcTerm(timestamp *time.Time, proc *Process) error {
+func (host *Host) UpdateProcTerm(timestamp time.Time, proc *Process) error {
 	proc.State = PSStopped
 	proc.TerminatedAt = timestamp
 	return PgConn.UpdateProcTerm(host.HostId, proc)
@@ -355,7 +355,7 @@ func (hm *HostManager) OnProcessEvent(msg *Message) {
 			proc = host.AddProcess(false, processGuid, processId, event.getImage(), event.get("CommandLine"))
 		}
 
-		proc.CreatedAt = event.timestamp()
+		proc.CreatedAt = event.getTimestamp()
 		proc.OriginalFileName = event.get("OriginalFileName")
 		proc.CurrentDirectory = event.get("CurrentDirectory")
 		proc.IntegrityLevel = event.get("IntegrityLevel")
@@ -380,7 +380,7 @@ func (hm *HostManager) OnProcessEvent(msg *Message) {
 
 	case EProcessTerminate:
 		if proc := host.GetProcess(processGuid); proc != nil {
-			if err := host.UpdateProcTerm(event.timestamp(), proc); err != nil {
+			if err := host.UpdateProcTerm(event.getTimestamp(), proc); err != nil {
 				hm.logger.Warnf("cannot update the proc state, %s\n", err)
 			}
 		}
@@ -400,7 +400,7 @@ func (hm *HostManager) OnSysmonEvent(msg *Message) {
 
 	event := msg.Event
 	actLog := &ActivityLog{
-		Timestamp: *event.timestamp(),
+		Timestamp: event.getTimestamp(),
 		Type:      LClient,
 	}
 	switch event.EventID {
@@ -431,7 +431,7 @@ func (hm *HostManager) AddHost(hostId string, host *Host) {
 	hm.HostsLock.Lock()
 	hm.Hosts[hostId] = host
 	hm.HostsLock.Unlock()
-	_ = PgConn.SaveHost(hostId, host)
+	PgConn.SaveHost(hostId, host)
 }
 
 // GetHost return the host with corresponding hostId

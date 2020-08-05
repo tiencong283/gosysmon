@@ -44,7 +44,7 @@ func (conn *DBConn) Close() {
 	for _, smt := range conn.preparedSmts {
 		_ = smt.Close()
 	}
-	_ = conn.db.Close()
+	conn.db.Close()
 }
 
 // DeleteAll deletes all entries in related tables
