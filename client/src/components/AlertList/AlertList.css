@@ -22,3 +22,8 @@
 .alert-context-content {
     margin-top: 20px;
 }
+
+.clickable:hover {
+    cursor: pointer;
+    text-decoration: underline;
+}

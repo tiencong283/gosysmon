@@ -6,6 +6,7 @@ import PaginationNav from "../PaginationNav/PaginationNav";
 
 const title = "IOC List - GoSysmon"
 const endpoint = "/api/ioc"
+const iocTypes = ["Hash", "IP", "Domain"]
 
 class IOCList extends React.Component {
     constructor(props) {
@@ -13,6 +14,10 @@ class IOCList extends React.Component {
         this.state = {
             viewIOCs: [],
             iocList: [],
+	    iocListRaw: [],
+	    searchList: [],
+	    sortType: "desc",
+	    searched: "0",
             paging: {   // pagination
                 currentPageIdx: 0,
                 elementsPerPage: 20,
@@ -64,6 +69,60 @@ class IOCList extends React.Component {
         })
     }
 
+    handleInput(e){
+	var searchIOCs = this.state.iocListRaw.filter( function (ioc) {
+			var isSearched = false;
+			if (ioc.ExternalUrl.indexOf(e.target.value) > -1) 
+				isSearched = true;
+			else if (ioc.Indicator.indexOf(e.target.value) > -1) 
+				isSearched = true; 
+		      if (isSearched) 
+			return ioc;
+		    })
+	var isSearch = e.target.value=="" ? "0" : "1"
+        this.setState({ textValue: e.target.value,
+		viewIOCs: this.getViewElementsFrom(0, e.target.value!=="" ? searchIOCs : this.state.iocListRaw),
+		searched: isSearch,
+		searchList: searchIOCs,
+		paging: {
+                        ...this.state.paging,
+			currentPageIdx: 0,
+                        numOfPages: Math.floor(searchIOCs.length % this.state.paging.elementsPerPage == 0) ? Math.floor(searchIOCs.length / this.state.paging.elementsPerPage) : Math.floor(searchIOCs.length / this.state.paging.elementsPerPage + 1)
+                    }
+        });
+    }
+
+    handleSortByTime(e){ 
+	var sortList = this.state.searched == "0" ? this.state.iocListRaw : this.state.searchList
+	var list = this.state.sortType == "desc" 
+		? sortList.sort(function(a, b) {
+		  if (a.Timestamp.toUpperCase() < b.Timestamp.toUpperCase()) {
+		    return -1;
+		  }
+		  if (a.Timestamp.toUpperCase() > b.Timestamp.toUpperCase()) {
+		    return 1;
+		  }
+		  return 0;
+		})
+		: sortList.sort(function(a, b) {
+		  if (a.Timestamp.toUpperCase() < b.Timestamp.toUpperCase()) {
+		    return 1;
+		  }
+		  if (a.Timestamp.toUpperCase() > b.Timestamp.toUpperCase()) {
+		    return -1;
+		  }
+		  return 0;
+		})
+        this.setState({ 
+		iocList: this.state.iocListRaw,
+		sortType: this.state.sortType == "desc" ? "asc" : "desc",
+		viewIOCs: this.getViewElementsFrom(0, list),
+		paging: {
+			...this.state.paging,
+			currentPageIdx: 0,
+		}
+        });
+    }
 
     componentDidMount() {
         document.title = title
@@ -72,11 +131,36 @@ class IOCList extends React.Component {
             dataType: "json",
             success: function (data) {
                 this.setState({
-                    viewIOCs: this.getViewElementsFrom(this.state.paging.currentPageIdx, data),
-                    iocList: data,
+                    iocListRaw: data.sort(function(a, b) {
+			  if (a.Timestamp.toUpperCase() < b.Timestamp.toUpperCase()) {
+			    return 1;
+			  }
+			  if (a.Timestamp.toUpperCase() > b.Timestamp.toUpperCase()) {
+			    return -1;
+			  }
+			  return 0;
+			}),
+                    viewIOCs: this.getViewElementsFrom(this.state.paging.currentPageIdx, data.sort(function(a, b) {
+			  if (a.Timestamp.toUpperCase() < b.Timestamp.toUpperCase()) {
+			    return 1;
+			  }
+			  if (a.Timestamp.toUpperCase() > b.Timestamp.toUpperCase()) {
+			    return -1;
+			  }
+			  return 0;
+			})),
+                    iocList: data.sort(function(a, b) {
+			  if (a.Timestamp.toUpperCase() < b.Timestamp.toUpperCase()) {
+			    return 1;
+			  }
+			  if (a.Timestamp.toUpperCase() > b.Timestamp.toUpperCase()) {
+			    return -1;
+			  }
+			  return 0;
+			}),
                     paging: {
                         ...this.state.paging,
-                        numOfPages: Math.floor(data.length / this.state.paging.elementsPerPage) + 1
+                        numOfPages: Math.floor(data.length % this.state.paging.elementsPerPage == 0) ? Math.floor(data.length / this.state.paging.elementsPerPage) : Math.floor(data.length / this.state.paging.elementsPerPage + 1)
                     }
                 })
             }.bind(this),
@@ -86,13 +170,14 @@ class IOCList extends React.Component {
     render() {
         return (
             <div className="list-table-container">
+		<input value={this.state.textValue} onInput={this.handleInput.bind(this)}/>
                 <PaginationNav paging={this.state.paging} handlePrevious={this.handlePrevious}
                                handleNext={this.handleNext}/>
 
                 <table className="list-table hover unstriped">
                     <thead>
                     <tr>
-                        <th>Timestamp</th>
+                        <th><button onClick={this.handleSortByTime.bind(this)}>Timestamp</button></th>
                         <th>Type</th>
                         <th>Indicator</th>
                         <th>Notes</th>
@@ -104,9 +189,11 @@ class IOCList extends React.Component {
                             return (
                                 <tr>
                                     <td>{ioc.Timestamp}</td>
-                                    <td>{ioc.IOCType}</td>
+                                    <td>{iocTypes[ioc.IOCType]}</td>
                                     <td><a href={ioc.ExternalUrl}>{ioc.Indicator}</a></td>
-                                    <td><Link to={ioc.ProcRefUrl}>{ioc.Message}</Link></td>
+                                    <td><Link
+                                        to={`/process?ProviderGuid=${ioc.ProviderGuid}&ProcessGuid=${ioc.ProcessGuid}`}>
+                                        {ioc.Message}</Link></td>
                                 </tr>
                             )
                         })
