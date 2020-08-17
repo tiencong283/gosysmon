@@ -24,6 +24,7 @@ class AlertList extends React.Component {
             alertList: [],
             alert: {},
 	    sortType: "desc",
+	    sortBy: "time",
 	    searched: "0",
             paging: {   // pagination
                 currentPageIdx: 0,
@@ -135,6 +136,7 @@ class AlertList extends React.Component {
 		alertList: this.state.alertListRaw,
 		sortType: this.state.sortType == "desc" ? "asc" : "desc",
 		viewAlerts: this.getViewElementsFrom(0, list),
+		sortBy: "host",
 		paging: {
 			...this.state.paging,
 			currentPageIdx: 0,
@@ -167,6 +169,7 @@ class AlertList extends React.Component {
 		alertList: this.state.alertListRaw,
 		sortType: this.state.sortType == "desc" ? "asc" : "desc",
 		viewAlerts: this.getViewElementsFrom(0, list),
+		sortBy: "time",
 		paging: {
 			...this.state.paging,
 			currentPageIdx: 0,
@@ -248,8 +251,24 @@ class AlertList extends React.Component {
                 <table className="list-table">
                     <thead>
                     <tr>
-                        <th><button onClick={this.handleSortByTime.bind(this)}>Timestamp</button></th>
-                        <th><button onClick={this.handleSortByHostName.bind(this)}>Host Name</button></th>
+                        <th>
+			    <button onClick={this.handleSortByTime.bind(this)} class="title">
+				<p>Timestamp</p>
+				<div class="sort">
+				    <div className={this.state.sortType === "asc" && this.state.sortBy === "time" ? "arrow-up-active" : "arrow-up"}></div>
+			    	    <div className={this.state.sortType === "desc" && this.state.sortBy === "time" ? "arrow-down-active" : "arrow-down"}></div>
+				</div>
+			    </button>
+			</th>
+                        <th>
+			    <button onClick={this.handleSortByHostName.bind(this)} class="title">
+				<p>Host Name</p>
+				<div class="sort">
+				    <div className={this.state.sortType === "asc" && this.state.sortBy === "host" ? "arrow-up-active" : "arrow-up"}></div>
+			    	    <div className={this.state.sortType === "desc" && this.state.sortBy === "host" ? "arrow-down-active" : "arrow-down"}></div>
+				</div>
+			    </button>
+			</th>
                         <th>Process</th>
                         <th>Technique</th>
                         <th>Notes</th>

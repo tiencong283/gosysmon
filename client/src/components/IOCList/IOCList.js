@@ -177,7 +177,15 @@ class IOCList extends React.Component {
                 <table className="list-table hover unstriped">
                     <thead>
                     <tr>
-                        <th><button onClick={this.handleSortByTime.bind(this)}>Timestamp</button></th>
+			<th>
+			    <button onClick={this.handleSortByTime.bind(this)} class="title">
+				<p>Timestamp</p>
+				<div class="sort">
+				    <div className={this.state.sortType === "asc" ? "arrow-up-active" : "arrow-up"}></div>
+			    	    <div className={this.state.sortType === "desc" ? "arrow-down-active" : "arrow-down"}></div>
+				</div>
+			    </button>
+			</th>
                         <th>Type</th>
                         <th>Indicator</th>
                         <th>Notes</th>
