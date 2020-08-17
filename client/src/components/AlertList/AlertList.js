@@ -1,7 +1,7 @@
 import React from "react"
-import "./AlertList.css"
 import {Link} from "react-router-dom"
 import $ from "jquery"
+import AlertContextModel from "../AlertContextModel/AlertContextModel"
 import PaginationNav from "../PaginationNav/PaginationNav"
 
 const title = "Alert List - GoSysmon"
@@ -35,7 +35,7 @@ class AlertList extends React.Component {
         event.preventDefault()
         $("#alert-context").toggle()
         this.setState({
-            alert: this.state.alertList[idx],
+            alert: this.state.viewAlerts[idx],
         })
     }
 
@@ -101,14 +101,18 @@ class AlertList extends React.Component {
     renderAlerts() {
         return this.state.viewAlerts.map((alert, idx) => {
             return (
-                <tr>
-                    <td>{alert.Timestamp}</td>
+                <tr key={idx}>
+                    <td className="col-timestamp">{alert.Timestamp}</td>
                     <td>{alert.HostName}</td>
-                    <td><Link to={alert.ProcRefUrl}>{alert.ProcessId} - {alert.ProcessImage}</Link></td>
-                    <td><a
-                        onClick={this.handleOpenSideBar.bind(this, idx)}>{alert.Technique.Id} - {alert.Technique.Name}</a>
+                    <td>
+                        <Link to={alert.ProcRefUrl}>{alert.ProcessId} - {alert.ProcessImage}</Link>
                     </td>
-                    <td>{alert.Message}</td>
+                    <td>
+                        <a
+                            onClick={this.handleOpenSideBar.bind(this, idx)}>{alert.Technique.Id}
+                            - {alert.Technique.Name}</a>
+                    </td>
+                    <td className="col-notes">{alert.Message}</td>
                 </tr>
             )
         })
@@ -116,11 +120,11 @@ class AlertList extends React.Component {
 
     render() {
         return (
-            <div className="list-table-container">
+            <div className="inner-content-wrapper">
                 <PaginationNav paging={this.state.paging} handlePrevious={this.handlePrevious}
                                handleNext={this.handleNext}/>
-                <SideNav alert={this.state.alert}/>
-                <table className="list-table">
+                <AlertContextModel alert={this.state.alert}/>
+                <table className="common-table">
                     <thead>
                     <tr>
                         <th>Timestamp</th>
@@ -136,71 +140,6 @@ class AlertList extends React.Component {
                     }
                     </tbody>
                 </table>
-            </div>
-        )
-    }
-}
-
-class SideNav extends React.Component {
-    renderHeader() {
-        let alert = this.props.alert
-        if ($.isEmptyObject(alert)) {
-            return
-        }
-        return (
-            <div className="alert-context-header"><a href={alert.Technique.Url}>Mitre
-                ATT&CK <i className="fa fa-external-link"/></a></div>
-        )
-    }
-
-    renderPropList() {
-        let alert = this.props.alert
-        if ($.isEmptyObject(alert)) {
-            return
-        }
-        let properties = Object.keys(alert.Context).map(function (key) {
-            return [key, alert.Context[key]]
-        })
-        properties.sort(function (a, b) {
-            if (a[0] > b[0]) {
-                return 1
-            }
-            if (a[0] < b[0]) {
-                return -1
-            }
-            return 0
-        })
-        return properties.map(function (arr) {
-            return (
-                <tr>
-                    <td>{arr[0]}</td>
-                    <td>{arr[1]}</td>
-                </tr>
-            )
-        })
-    }
-
-    render() {
-        return (
-            <div id="alert-context" className="sidenav">
-                {
-                    this.renderHeader()
-                }
-                <div className="alert-context-content">
-                    <table>
-                        <thead>
-                        <tr>
-                            <th width="100">Property</th>
-                            <th>Value</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {
-                            this.renderPropList()
-                        }
-                        </tbody>
-                    </table>
-                </div>
             </div>
         )
     }

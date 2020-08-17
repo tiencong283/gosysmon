@@ -1,20 +1,18 @@
 import React from "react"
-import "./Process.css"
 import {useLocation} from "react-router-dom"
-
-import ProcessTabLogo from "./gear.svg"
-import FileTabLogo from "./file-earmark-binary.svg"
-import ActTabLogo from "./camera-reels.svg"
-import RelationshipTabLogo from "./diagram-3.svg"
-
+import AlertContextModel from "../AlertContextModel/AlertContextModel"
 import Highcharts from 'highcharts'
 import HighchartsReact from 'highcharts-react-official'
 import $ from "jquery"
 
-require('highcharts/modules/sankey')(Highcharts)
+import "./Process.css"
+import ProcessTabLogo from "./gear.svg"
+import FileTabLogo from "./file-earmark-binary.svg"
+import ActTabLogo from "./camera-reels.svg"
+import RelationshipTabLogo from "./diagram-3.svg"
+import UserTabLogo from "./user.svg"
+
 require('highcharts/modules/networkgraph')(Highcharts)
-require('highcharts/modules/exporting')(Highcharts)
-require('highcharts/modules/accessibility')(Highcharts)
 
 const axios = require('axios')
 axios.defaults.headers.post['Content-Type'] = 'application/x-www-form-urlencoded'
@@ -22,6 +20,7 @@ axios.defaults.headers.post['Content-Type'] = 'application/x-www-form-urlencoded
 const title = "Process Information - Gosysmon"
 const processAPI = "/api/process"
 const processRelAPI = "/api/process-tree"
+const processActivitiesAPI = "/api/process-activities"
 
 // A custom hook that builds on useLocation to parse
 // the query string for you. https://reactrouter.com/web/example/query-parameters
@@ -48,6 +47,11 @@ const procNavItems = [
         name: "File"
     },
     {
+        tabSegment: "#session",
+        logoSrc: UserTabLogo,
+        name: "Session"
+    },
+    {
         tabSegment: "#activity",
         logoSrc: ActTabLogo,
         name: "Activities"
@@ -56,7 +60,7 @@ const procNavItems = [
         tabSegment: "#relationship",
         logoSrc: RelationshipTabLogo,
         name: "Relationship"
-    }
+    },
 ]
 
 class Process extends React.Component {
@@ -65,6 +69,7 @@ class Process extends React.Component {
         this.state = {
             proc: {},
             procRel: {},
+            procActivities: {},
             tabSegment: "#execution-details"
         }
         this.handleSwitchTab = this.handleSwitchTab.bind(this)
@@ -99,6 +104,19 @@ class Process extends React.Component {
 
         axios({
             method: 'POST',
+            url: processActivitiesAPI,
+            data: formData,
+            headers: {'Content-Type': 'multipart/form-data'}
+        }).then(function (response) {
+            this.setState({
+                procActivities: response.data,
+            })
+        }.bind(this)).catch(function (error) {
+            console.log(error)
+        })
+
+        axios({
+            method: 'POST',
             url: processAPI,
             data: formData,
             headers: {'Content-Type': 'multipart/form-data'}
@@ -112,10 +130,10 @@ class Process extends React.Component {
     }
 
     renderProcNavItems() {
-        return procNavItems.map((navItem) => {
+        return procNavItems.map((navItem, idx) => {
             let active = navItem.tabSegment === this.state.tabSegment ? "process-tab-active" : ""
             return (
-                <li className={active}><a href={navItem.tabSegment} onClick={this.handleSwitchTab}><img
+                <li key={idx} className={active}><a href={navItem.tabSegment} onClick={this.handleSwitchTab}><img
                     src={navItem.logoSrc}
                     alt=""/><span>{navItem.name}</span></a>
                 </li>
@@ -136,9 +154,11 @@ class Process extends React.Component {
                 <div className="process-content">
                     {this.state.tabSegment === "#execution-details" && <ProcessExecution proc={this.state.proc}/>}
                     {this.state.tabSegment === "#file-defails" && <ProcessImageFile proc={this.state.proc}/>}
-                    {this.state.tabSegment === "#activity" && <ProcessActivities/>}
+                    {this.state.tabSegment === "#activity" &&
+                    <ProcessActivities procActivities={this.state.procActivities}/>}
                     {this.state.tabSegment === "#relationship" &&
                     <ProcessRel proc={this.state.proc} procRel={this.state.procRel}/>}
+                    {this.state.tabSegment === "#session" && <ProcessSession proc={this.state.proc}/>}
                 </div>
             </div>
         )
@@ -165,8 +185,8 @@ class ProcessExecution extends React.Component {
         return (
             <div>
                 {
-                    this.executionProps.map(function (prop) {
-                        return <p><span className="pinfo-key">{prop[0]}</span><span>{proc[prop[1]]}</span></p>
+                    this.executionProps.map(function (prop, idx) {
+                        return <p key={idx}><span className="pinfo-key">{prop[0]}</span><span>{proc[prop[1]]}</span></p>
                     })
                 }
             </div>
@@ -208,8 +228,36 @@ class ProcessImageFile extends React.Component {
                     this.renderHashes()
                 }
                 {
-                    this.fileProps.map(function (prop) {
-                        return <p><span className="pinfo-key">{prop[0]}</span><span>{proc[prop[1]]}</span></p>
+                    this.fileProps.map(function (prop, idx) {
+                        return <p key={idx}><span className="pinfo-key">{prop[0]}</span><span>{proc[prop[1]]}</span></p>
+                    })
+                }
+            </div>
+        )
+    }
+}
+
+class ProcessSession extends React.Component {
+    constructor(props) {
+        super(props);
+        this.executionProps = [
+            ["User:", "User"],
+            ["LogonGuid:", "LogonGuid"],
+            ["LogonId:", "LogonId"],
+            ["TerminalSessionId:", "TerminalSessionId"],
+        ]
+    }
+
+    render() {
+        let proc = this.props.proc
+        if (!proc || proc.Abandoned) {
+            return <p>Unknown</p>
+        }
+        return (
+            <div>
+                {
+                    this.executionProps.map(function (prop, idx) {
+                        return <p key={idx}><span className="pinfo-key">{prop[0]}</span><span>{proc[prop[1]]}</span></p>
                     })
                 }
             </div>
@@ -218,8 +266,57 @@ class ProcessImageFile extends React.Component {
 }
 
 class ProcessActivities extends React.Component {
+    constructor(props) {
+        super(props)
+        this.state = {
+            viewObject: {}
+        }
+
+    }
+
+    handleOpenSideBar(idx, event) {
+        event.preventDefault()
+        $("#alert-context").toggle()
+        this.setState({
+            viewObject: this.props.procActivities[idx],
+        })
+    }
+
+    renderActivities() {
+        return this.props.procActivities.map((entry, idx) => {
+            return (
+                <tr key={idx}>
+                    <td className="col-timestamp"><span>{entry.Timestamp}</span></td>
+                    <td><a
+                        onClick={this.handleOpenSideBar.bind(this, idx)}>{entry.Technique.Id} - {entry.Technique.Name}</a>
+                    </td>
+                </tr>
+            )
+        })
+    }
+
     render() {
-        return <h3>ProcessActivities</h3>
+        if (!this.props.procActivities) {
+            return <p>Loading ...</p>
+        }
+        return (
+            <div className="procActivities-content">
+                <AlertContextModel alert={this.state.viewObject}/>
+                <table className="common-table">
+                    <thead>
+                    <tr>
+                        <th>Timeline</th>
+                        <th>Activity</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {
+                        this.renderActivities()
+                    }
+                    </tbody>
+                </table>
+            </div>
+        )
     }
 }
 
@@ -243,12 +340,12 @@ class ProcessRel extends React.Component {
     }
 
     renderNodeNotes() {
-        return Object.keys(this.nodeColors).map(key => {
+        return Object.keys(this.nodeColors).map((key, idx) => {
             let nodeColor = this.nodeColors[key]
             let style = {
                 backgroundColor: nodeColor.color
             }
-            return <span><span className="circle" style={style}/>{nodeColor.description}</span>
+            return <span key={idx}><span className="circle" style={style}/>{nodeColor.description}</span>
         })
     }
 
@@ -304,8 +401,10 @@ class ProcessRel extends React.Component {
             exporting: {
                 enabled: false
             },
+            credits: {
+                enabled: false
+            }
         }
-
         return (
             <div className="processtree-content">
                 <div className="node-note">

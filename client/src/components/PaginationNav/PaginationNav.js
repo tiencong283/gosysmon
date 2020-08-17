@@ -1,5 +1,4 @@
 import React from "react"
-import "./PaginationNav.css"
 
 class PaginationNav extends React.Component {
     hasPrevious() {

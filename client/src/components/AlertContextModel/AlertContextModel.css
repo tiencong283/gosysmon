@@ -1,4 +1,5 @@
-.sidenav {
+#alert-context {
+    display: none;
     position: fixed;
     top: 0;
     right: 0;
@@ -11,14 +12,10 @@
     overflow: scroll;
 }
 
-#alert-context {
-    display: none;
-}
-
-.alert-context-header a {
+#alert-context-header a {
     padding-left: 8px;
 }
 
-.alert-context-content {
+#alert-context-content {
     margin-top: 20px;
 }

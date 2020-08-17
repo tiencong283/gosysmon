@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/gomodule/redigo/redis"
@@ -86,6 +87,7 @@ type Engine struct {
 	FilterEngine    *FilterEngine
 	ExtractorEngine *PreprocessorEngine
 	TermChan        chan os.Signal
+	EventRateHooker *EventRateHooker
 }
 
 func NewFilterEngine(alertCh chan interface{}) *FilterEngine {
@@ -152,6 +154,7 @@ func NewEngine(configFilePath string) (*Engine, error) {
 	engine.TermChan = make(chan os.Signal, 64)
 	signal.Notify(engine.TermChan, os.Interrupt, syscall.SIGTERM)
 
+	engine.EventRateHooker = NewEventRateHooker()
 	return engine, nil
 }
 
@@ -200,6 +203,8 @@ func (engine *Engine) Start() error {
 		cancel()
 	}(engine.TermChan, cancel)
 
+	go engine.EventRateHooker.Start()
+
 	var msg = new(Message)
 	preOffset := engine.Reader.Offset()
 	lastOffset := preOffset
@@ -214,6 +219,7 @@ func (engine *Engine) Start() error {
 		if err := json.Unmarshal(rawMsg.Value, &msg); err != nil {
 			log.Warn(err)
 		}
+		engine.EventRateHooker.MessageCh <- msg
 		if err := engine.ExtractorEngine.Transform(msg); err != nil {
 			log.Warn("cannot transform the event,", err)
 		}
@@ -244,6 +250,8 @@ func (engine *Engine) StartWebApp() {
 	endpoint := engine.Config.ServerHost + ":" + engine.Config.ServerPort
 	log.Infoln("Starting the server at", endpoint)
 	router := gin.Default()
+	// allows all origins for debugging
+	router.Use(cors.Default())
 	// index.html
 	router.StaticFile("", "./client/build/index.html")
 	// static middleware
@@ -256,8 +264,11 @@ func (engine *Engine) StartWebApp() {
 	apiGroup.POST("process", engine.HostManager.ProcessHandler)
 	apiGroup.POST("process-tree", engine.HostManager.ProcessTreeHandler)
 	apiGroup.GET("activity-log", engine.AllLogHandler)
-	apiGroup.GET("process-activities", engine.HostManager.ProcessActivityHandler)
+	apiGroup.POST("process-activities", engine.HostManager.ProcessActivityHandler)
+	apiGroup.GET("technique-stats", engine.TechniqueStatsHandler)
 
+	// websockets
+	router.Any("/ws/event-processing-rate", engine.EventRateHooker.ServeEventRateWs)
 	go func() {
 		if err := router.Run(endpoint); err != nil {
 			log.Fatal(err)
@@ -267,9 +278,15 @@ func (engine *Engine) StartWebApp() {
 
 // Close cleans up any resources
 func (engine *Engine) Close() {
-	engine.Reader.Close()
-	RedisConn.Close()
-	PgConn.Close()
+	if err := engine.Reader.Close(); err != nil {
+		log.Warn("cannot close Kafka Reader, ", err)
+	}
+	if err := RedisConn.Close(); err != nil {
+		log.Warn("cannot close Redis Connection, ", err)
+	}
+	if err := PgConn.Close(); err != nil {
+		log.Warn("cannot close Postgres Connection, ", err)
+	}
 }
 
 // request handler for "/api/activity-log"
@@ -288,4 +305,13 @@ func (engine *Engine) AllLogHandler(c *gin.Context) {
 		actLogs = append(actLogs, NewActivityLogView(actLog))
 	}
 	c.JSON(http.StatusOK, actLogs)
+}
+
+func (engine *Engine) TechniqueStatsHandler(c *gin.Context) {
+	stats, err := PgConn.GetTechniqueStats()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, err)
+		return
+	}
+	c.JSON(http.StatusOK, stats)
 }

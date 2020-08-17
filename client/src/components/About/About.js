@@ -10,7 +10,10 @@ class About extends React.Component {
 
     render() {
         return (
-            <h1>About</h1>
+            <div className="inner-content-wrapper">
+                <div id="aboutme">
+                </div>
+            </div>
         )
     }
 }

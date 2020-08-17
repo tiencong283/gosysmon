@@ -40,11 +40,11 @@ func InitPg(driverName, connUrl string) error {
 	return nil
 }
 
-func (conn *DBConn) Close() {
+func (conn *DBConn) Close() error {
 	for _, smt := range conn.preparedSmts {
-		_ = smt.Close()
+		smt.Close()
 	}
-	conn.db.Close()
+	return conn.db.Close()
 }
 
 // DeleteAll deletes all entries in related tables
@@ -233,7 +233,7 @@ func (conn *DBConn) GetProcessesByHost(hostId string) ([]*Process, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows, err := stmt.Query(hostId, hostId)
+	rows, err := stmt.Query(hostId)
 	if err != nil {
 		return nil, err
 	}
@@ -264,7 +264,7 @@ func (conn *DBConn) GetFeaturesByProcess(hostId, processGuid string) ([]*MitreAT
 	if err != nil {
 		return nil, err
 	}
-	rows, err := stmt.Query(hostId, hostId)
+	rows, err := stmt.Query(hostId, processGuid)
 	if err != nil {
 		return nil, err
 	}
@@ -342,7 +342,7 @@ func (conn *DBConn) GetAlertsOrderByTimestampDesc() ([]*MitreATTCKResult, error)
 	return alerts, nil
 }
 
-func (conn *DBConn) GetProcessActivities(hostId, processGuid string) ([]*MitreATTCKResult, error) {
+func (conn *DBConn) GetFeaturesByProc(hostId, processGuid string) ([]*MitreATTCKResult, error) {
 	alerts := make([]*MitreATTCKResult, 0)
 	query := "SELECT Timestamp, IsAlert, Context, Message, " +
 		"TechniqueId FROM Features WHERE IsAlert and HostId=$1 and ProcessGuid=$2 ORDER BY Timestamp"
@@ -350,7 +350,7 @@ func (conn *DBConn) GetProcessActivities(hostId, processGuid string) ([]*MitreAT
 	if err != nil {
 		return nil, err
 	}
-	rows, err := stmt.Query(hostId, hostId)
+	rows, err := stmt.Query(hostId, processGuid)
 	if err != nil {
 		return nil, err
 	}
@@ -373,4 +373,29 @@ func (conn *DBConn) GetProcessActivities(hostId, processGuid string) ([]*MitreAT
 		return nil, err
 	}
 	return alerts, nil
+}
+
+func (conn *DBConn) GetTechniqueStats() (*TechniqueStats, error) {
+	result := &TechniqueStats{
+		Counts: make([]TechniqueCount, 0),
+	}
+	query := "SELECT TechniqueId, count(TechniqueId) FROM Features GROUP BY TechniqueId"
+	rows, err := conn.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var techID string
+		var techCount TechniqueCount
+		if err := rows.Scan(&techID, &techCount.Count); err != nil {
+			return nil, err
+		}
+		techCount.Technique = Techniques[techID]
+		result.Counts = append(result.Counts, techCount)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }

@@ -148,7 +148,9 @@ func (filter *IOCFilter) CheckIOC(indicator string, iocType int) (bool, error) {
 		if err = RedisConn.Send("SET", key, ans); err != nil { // cached in redis
 			return false, err
 		}
-		RedisConn.Flush()
+		if err := RedisConn.Flush(); err != nil {
+			return false, err
+		}
 		return ans, nil
 	} else if resp.StatusCode == 404 {
 		return false, nil

@@ -1,11 +1,17 @@
 .main-sidebar {
-    font-size: 21px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    position: sticky;
+    top: 0;
+    left: 0;
     height: 100vh;
-    border-right: 1px solid silver;
+    font-size: 21px;
+    background-color: rgb(42, 40, 62);
+    color: white;
 }
 
 .main-sidebar .menu {
     margin-top: 40px;
+    font-weight: 400;
 }
 
 .main-sidebar .menu li:hover {

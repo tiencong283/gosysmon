@@ -1,5 +1,4 @@
 import React from "react"
-import "./IOCList.css"
 import $ from "jquery"
 import {Link} from "react-router-dom";
 import PaginationNav from "../PaginationNav/PaginationNav";
@@ -85,11 +84,11 @@ class IOCList extends React.Component {
 
     render() {
         return (
-            <div className="list-table-container">
+            <div className="inner-content-wrapper">
                 <PaginationNav paging={this.state.paging} handlePrevious={this.handlePrevious}
                                handleNext={this.handleNext}/>
 
-                <table className="list-table hover unstriped">
+                <table className="common-table">
                     <thead>
                     <tr>
                         <th>Timestamp</th>
@@ -100,13 +99,13 @@ class IOCList extends React.Component {
                     </thead>
                     <tbody>
                     {
-                        this.state.viewIOCs.map(function (ioc) {
+                        this.state.viewIOCs.map(function (ioc, idx) {
                             return (
-                                <tr>
-                                    <td>{ioc.Timestamp}</td>
+                                <tr key={idx}>
+                                    <td className="col-timestamp">{ioc.Timestamp}</td>
                                     <td>{ioc.IOCType}</td>
                                     <td><a href={ioc.ExternalUrl}>{ioc.Indicator}</a></td>
-                                    <td><Link to={ioc.ProcRefUrl}>{ioc.Message}</Link></td>
+                                    <td className="col-notes"><Link to={ioc.ProcRefUrl}>{ioc.Message}</Link></td>
                                 </tr>
                             )
                         })

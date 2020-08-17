@@ -41,6 +41,13 @@ type Process struct {
 	Hashes           map[string]string
 	// product information
 	FileVersion, Description, Product, Company string
+
+	// session
+	User              string
+	LogonGuid         string
+	LogonId           string
+	TerminalSessionId string
+
 	// relationship
 	ParentPGuid string   `json:"-"`
 	Parent      *Process `json:"-"`
@@ -355,6 +362,11 @@ func (hm *HostManager) OnProcessEvent(msg *Message) {
 		proc.Product = event.get("Product")
 		proc.Company = event.get("Company")
 
+		proc.User = event.get("User")
+		proc.LogonGuid = event.get("LogonGuid")
+		proc.LogonId = event.get("LogonId")
+		proc.TerminalSessionId = event.get("TerminalSessionId")
+
 		proc.Parent = parent
 		parent.AddChildProc(proc)
 		if !shouldUpdate {
@@ -420,7 +432,9 @@ func (hm *HostManager) AddHost(hostId string, host *Host) {
 	hm.HostsLock.Lock()
 	hm.Hosts[hostId] = host
 	hm.HostsLock.Unlock()
-	PgConn.SaveHost(hostId, host)
+	if err := PgConn.SaveHost(hostId, host); err != nil {
+		hm.logger.Warn("cannot persist host, ", err)
+	}
 }
 
 // GetHost return the host with corresponding hostId
@@ -572,15 +586,19 @@ func (hm *HostManager) ProcessTreeHandler(c *gin.Context) {
 
 // request handler for "/api/process-activities" (process relationship information)
 func (hm *HostManager) ProcessActivityHandler(c *gin.Context) {
+	views := make([]*MitreATTCKResultView, 0)
 	hostId, processGuid := c.PostForm("HostId"), c.PostForm("ProcessGuid")
 	if hostId == "" || processGuid == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid parameters"})
 		return
 	}
-	alerts, err := PgConn.GetProcessActivities(hostId, processGuid)
+	features, err := PgConn.GetFeaturesByProc(hostId, processGuid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, alerts)
+	for _, fea := range features {
+		views = append(views, NewMitreATTCKResultView(fea))
+	}
+	c.JSON(http.StatusOK, views)
 }

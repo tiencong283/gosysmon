@@ -56,10 +56,10 @@ class App extends React.Component {
     render() {
         return (
             <BrowserRouter>
-                <div className="grid-container fluid">
+                <div className="grid-container full">
                     <div className="grid-x grid-margin-x main-container">
                         <Header navItems={navItems}/>
-                        <div className="cell auto main-content">
+                        <div className="cell auto content-wrapper">
                             <Switch>
                                 {
                                     navItems.map((navItem, index) => (

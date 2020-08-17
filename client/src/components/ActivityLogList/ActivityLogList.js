@@ -1,5 +1,4 @@
 import React from "react"
-import "./ActivityLogList.css"
 import $ from "jquery";
 import PaginationNav from "../PaginationNav/PaginationNav";
 
@@ -83,10 +82,10 @@ class ActivityLog extends React.Component {
 
     render() {
         return (
-            <div className="list-table-container">
+            <div className="inner-content-wrapper">
                 <PaginationNav paging={this.state.paging} handlePrevious={this.handlePrevious}
                                handleNext={this.handleNext}/>
-                <table className="list-table hover unstriped">
+                <table className="common-table">
                     <thead>
                     <tr>
                         <th>Timestamp</th>
@@ -96,12 +95,12 @@ class ActivityLog extends React.Component {
                     </thead>
                     <tbody>
                     {
-                        this.state.viewActLogs.map(function (actLog) {
+                        this.state.viewActLogs.map(function (actLog, idx) {
                             return (
-                                <tr>
-                                    <td><span>{actLog.Timestamp}</span></td>
+                                <tr key={idx}>
+                                    <td className="col-timestamp"><span>{actLog.Timestamp}</span></td>
                                     <td><span>{actLog.Type}</span></td>
-                                    <td><span>{actLog.Message}</span></td>
+                                    <td className="col-notes"><span>{actLog.Message}</span></td>
                                 </tr>
                             )
                         })

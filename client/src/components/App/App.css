@@ -6,10 +6,42 @@ a:focus, a:hover {
     color: inherit;
 }
 
-.main-container {
+.content-wrapper {
     padding-top: 40px;
 }
 
-.main-content a:hover {
+.content-wrapper a:hover {
     text-decoration: underline;
+}
+
+/* table content style */
+.common-table {
+    font-family: helvetica, arial, sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    font-style: normal;
+    font-weight: 400;
+}
+
+.common-table a {
+    color: #4a8db8;
+}
+
+.common-table thead {
+    background-color: rgb(118, 127, 132);
+    color: white;
+    font-size: 14px;
+}
+
+.common-table tbody {
+    color: #3b3b3b;
+    font-size: 16px;
+}
+
+/* for timestamp column */
+.common-table .col-timestamp {
+    font-size: 12.5px;
+}
+
+/* for notes column */
+.common-table .col-notes {
+    font-style: italic;
 }

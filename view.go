@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	viewTimestampFormat = "2006-01-02 15:04:05.000"
+	viewTimestampFormat = "01/02/2006 15:04:05.000"
 	timestampLoc        = "Asia/Ho_Chi_Minh"
 	procRefUrlFormat    = `/process?HostId=%s&ProcessGuid=%s`
 )
@@ -108,6 +108,27 @@ func (hm *HostManager) NewAlertView(alert *MitreATTCKResult) *AlertView {
 	return alertView
 }
 
+// view object for "/api/process-activities"
+type MitreATTCKResultView struct {
+	ResultId
+	Timestamp string
+	IsAlert   bool
+	Context   map[string]interface{}
+	Message   string
+	Technique *AttackPattern
+}
+
+func NewMitreATTCKResultView(fea *MitreATTCKResult) *MitreATTCKResultView {
+	return &MitreATTCKResultView{
+		ResultId:  fea.ResultId,
+		Timestamp: formatTimestamp(fea.Timestamp),
+		IsAlert:   fea.IsAlert,
+		Context:   fea.Context,
+		Message:   fea.Message,
+		Technique: fea.Technique,
+	}
+}
+
 // ProcessView is the view layer for Process object
 type ProcessView struct {
 	Abandoned   bool // true if the process not derived from event ProcessCreate
@@ -129,6 +150,12 @@ type ProcessView struct {
 
 	// product information
 	FileVersion, Description, Product, Company string
+
+	// session
+	User              string
+	LogonGuid         string
+	LogonId           string
+	TerminalSessionId string
 }
 
 func formatProcState(procState int) string {
@@ -143,23 +170,27 @@ func formatProcState(procState int) string {
 
 func NewProcessView(proc *Process) *ProcessView {
 	return &ProcessView{
-		Abandoned:        proc.Abandoned,
-		ProcessGuid:      proc.ProcessGuid,
-		CreatedAt:        formatTimestamp(proc.CreatedAt),
-		TerminatedAt:     formatTimestamp(proc.TerminatedAt),
-		State:            formatProcState(proc.State),
-		ProcessId:        proc.ProcessId,
-		Image:            proc.Image,
-		ImageName:        GetImageName(proc.Image),
-		OriginalFileName: proc.OriginalFileName,
-		CommandLine:      proc.CommandLine,
-		CurrentDirectory: proc.CurrentDirectory,
-		IntegrityLevel:   proc.IntegrityLevel,
-		Hashes:           proc.Hashes,
-		FileVersion:      proc.FileVersion,
-		Description:      proc.Description,
-		Product:          proc.Product,
-		Company:          proc.Company,
+		Abandoned:         proc.Abandoned,
+		ProcessGuid:       proc.ProcessGuid,
+		CreatedAt:         formatTimestamp(proc.CreatedAt),
+		TerminatedAt:      formatTimestamp(proc.TerminatedAt),
+		State:             formatProcState(proc.State),
+		ProcessId:         proc.ProcessId,
+		Image:             proc.Image,
+		ImageName:         GetImageName(proc.Image),
+		OriginalFileName:  proc.OriginalFileName,
+		CommandLine:       proc.CommandLine,
+		CurrentDirectory:  proc.CurrentDirectory,
+		IntegrityLevel:    proc.IntegrityLevel,
+		Hashes:            proc.Hashes,
+		FileVersion:       proc.FileVersion,
+		Description:       proc.Description,
+		Product:           proc.Product,
+		Company:           proc.Company,
+		User:              proc.User,
+		LogonGuid:         proc.LogonGuid,
+		LogonId:           proc.LogonId,
+		TerminalSessionId: proc.TerminalSessionId,
 	}
 }
 
@@ -205,4 +236,12 @@ func NewProcessNodeView(proc *Process, nodeType string) *ProcessNodeView {
 		ProcessId:   proc.ProcessId,
 		NodeType:    nodeType,
 	}
+}
+
+type TechniqueCount struct {
+	Technique *AttackPattern
+	Count     int
+}
+type TechniqueStats struct {
+	Counts []TechniqueCount
 }
