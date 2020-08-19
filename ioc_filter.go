@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/gomodule/redigo/redis"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"io/ioutil"
 	"net"
@@ -53,6 +52,7 @@ type IOCFilter struct {
 	Client        *http.Client
 	VirustotalAPI string
 	Expired       bool
+	RedisConn     redis.Conn
 	CommonFilterer
 }
 
@@ -61,6 +61,7 @@ func NewIOCFilter() *IOCFilter {
 		Client:         new(http.Client),
 		VirustotalAPI:  viper.GetString("virustotal-api"),
 		CommonFilterer: NewCommonFilterer("IOC Filter"),
+		RedisConn:      RedisConnPool.Get(),
 	}
 }
 
@@ -77,7 +78,6 @@ func (filter *IOCFilter) IsSupported(msg *Message) bool {
 }
 
 func (filter *IOCFilter) Init() error {
-	filter.logger.Infoln("initializing")
 	return nil
 }
 
@@ -104,7 +104,7 @@ func (filter *IOCFilter) CheckIOC(indicator string, iocType int) (bool, error) {
 	case IOCIp:
 		key = "ioc:ip_address:" + indicator
 	}
-	ok, err := redis.Bool(RedisConn.Do("GET", key))
+	ok, err := redis.Bool(filter.RedisConn.Do("GET", key))
 	if err != redis.ErrNil {
 		if err != nil {
 			return false, err
@@ -145,10 +145,10 @@ func (filter *IOCFilter) CheckIOC(indicator string, iocType int) (bool, error) {
 			return false, nil
 		}
 		ans := analysis.Data.Attributes.LastAnalysisStats.Malicious > 1
-		if err = RedisConn.Send("SET", key, ans); err != nil { // cached in redis
+		if err = filter.RedisConn.Send("SET", key, ans); err != nil { // cached in redis
 			return false, err
 		}
-		if err := RedisConn.Flush(); err != nil {
+		if err := filter.RedisConn.Flush(); err != nil {
 			return false, err
 		}
 		return ans, nil
@@ -203,7 +203,7 @@ func (filter *IOCFilter) Start() {
 		}
 		malicious, err := filter.CheckIOC(indicator, iocType)
 		if err != nil {
-			log.Warnf("cannot check %s: %v", indicator, err)
+			filter.logger.Warnf("cannot check %s: %v", indicator, err)
 			continue
 		}
 		if malicious {
@@ -233,5 +233,6 @@ func (filter *IOCFilter) Start() {
 			filter.AlertCh <- report
 		}
 	}
+	filter.RedisConn.Close()
 	filter.State <- 1
 }

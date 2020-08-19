@@ -6,7 +6,7 @@ import (
 )
 
 // redis
-var RedisConn redis.Conn
+var RedisConnPool *redis.Pool
 
 // postgresql
 type DBConn struct {
@@ -17,10 +17,10 @@ type DBConn struct {
 var PgConn *DBConn
 
 func InitRedis(redisConUrl string) error {
-	var err error
-	RedisConn, err = redis.DialURL(redisConUrl)
-	if err != nil {
-		return err
+	RedisConnPool = &redis.Pool{
+		Dial: func() (redis.Conn, error) {
+			return redis.DialURL(redisConUrl)
+		},
 	}
 	return nil
 }

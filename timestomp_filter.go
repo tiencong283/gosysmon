@@ -74,7 +74,7 @@ func (filter *TimestompFilter) Start() {
 		previousTs, _ := time.Parse(TimeFormat, event.get("PreviousCreationUtcTime"))
 		if ts.Before(previousTs) { // should we consider the opposite case ?
 			alertMsg := fmt.Sprintf("Creation timestamp of %s has been changed to older", GetImageName(targetFileName))
-			alert := NewMitreATTCKResult(true, filter.TechniqueId, alertMsg, msg)
+			alert := NewMitreATTCKResult(true, filter.TechniqueId, alertMsg, msg, true)
 			alert.MergeContext(event.EventData)
 			alert.AddContext("EventID", event.EventID)
 			alert.AddContext("RecordID", event.RecordID)

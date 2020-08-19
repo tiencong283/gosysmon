@@ -5,8 +5,8 @@ type TemplateFilter struct {
 	CommonFilterer
 }
 
-func NewTemplateFilter() *IOCFilter {
-	return &IOCFilter{
+func NewTemplateFilter() *TemplateFilter {
+	return &TemplateFilter{
 		CommonFilterer: NewCommonFilterer("Template Filter"),
 	}
 }

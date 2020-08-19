@@ -34,8 +34,8 @@ type MitreATTCKResult struct {
 	Technique *MitreTechnique
 }
 
-func NewMitreATTCKResult(isAlert bool, techID, message string, msg *Message) *MitreATTCKResult {
-	return &MitreATTCKResult{
+func NewMitreATTCKResult(isAlert bool, techID, message string, msg *Message, mergeEventContext bool) *MitreATTCKResult {
+	alert := &MitreATTCKResult{
 		Timestamp: msg.Event.getTimestamp(),
 		Context:   make(map[string]interface{}),
 		Message:   message,
@@ -43,6 +43,13 @@ func NewMitreATTCKResult(isAlert bool, techID, message string, msg *Message) *Mi
 		ResultId:  NewResultId(msg),
 		IsAlert:   isAlert,
 	}
+	if mergeEventContext {
+		alert.MergeContext(msg.Event.EventData)
+		alert.AddContext("EventID", msg.Event.EventID)
+		alert.AddContext("RecordID", msg.Event.RecordID)
+	}
+	delete(alert.Context, "RuleName") // RuleName only for rule-based filter
+	return alert
 }
 
 func (r *MitreATTCKResult) MergeContext(m map[string]string) {

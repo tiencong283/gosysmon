@@ -1,19 +1,19 @@
 <Sysmon schemaversion="4.30">
     <!--
         References:
-            https://attack.mitre.org/techniques/T1059/
+            https://attack.mitre.org/techniques/T1059/003/
         List:
             monitor the execution of cmd.exe
         Todo:
             parsing its command arguments to provide context of what it will execute
         Testing:
-            https://github.com/redcanaryco/atomic-red-team/blob/t1085-vbscript/atomics/T1059/T1059.md
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1059.003/T1059.003.md
     -->
 
     <EventFiltering>
         <RuleGroup groupRelation="or">
             <ProcessCreate onmatch="include">
-                <Rule name="technique_id=T1059" groupRelation="or">
+                <Rule name="technique_id=T1059.003" groupRelation="or">
                     <Image condition="image">C:\Windows\System32\cmd.exe</Image>
                 </Rule>
             </ProcessCreate>

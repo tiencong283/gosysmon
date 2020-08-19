@@ -1,7 +1,7 @@
 <Sysmon schemaversion="4.30">
     <!--
         References:
-            https://attack.mitre.org/techniques/T1085/
+            https://attack.mitre.org/techniques/T1218/011/
             https://www.walkernews.net/2007/06/06/quick-start-to-rundll32-syntax-and-example/
             https://web.archive.org/web/20150202103048/http://support.microsoft.com/kb/164787
         List:
@@ -9,13 +9,13 @@
         Todo:
             parsing its command arguments to differentiate with normal activities
         Testing:
-            https://github.com/redcanaryco/atomic-red-team/blob/t1085-vbscript/atomics/T1085/T1085.md
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1218.011/T1218.011.md
     -->
 
     <EventFiltering>
         <RuleGroup groupRelation="or">
             <ProcessCreate onmatch="include">
-                <Rule name="technique_id=T1085" groupRelation="or">
+                <Rule name="technique_id=T1218.011" groupRelation="or">
                     <Image condition="image">C:\Windows\System32\rundll32.exe</Image>
                 </Rule>
             </ProcessCreate>

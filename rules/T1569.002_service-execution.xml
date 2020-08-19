@@ -1,0 +1,28 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1569/002/
+            https://docs.microsoft.com/en-us/sysinternals/downloads/psexec
+        List:
+            cover the case "PsExec can also be used to execute commands or payloads via a temporary Windows service created through the service control manager API"
+        Todo:
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1569.002/T1569.002.md
+    -->
+
+    <EventFiltering>
+        <RuleGroup name="technique_id=T1569.002" groupRelation="and">
+            <ProcessCreate onmatch="include">
+                <Rule name="" groupRelation="and">
+                    <Company condition="is">Sysinternals - www.sysinternals.com</Company>
+                    <Product condition="is">Sysinternals PsExec</Product>
+                    <Description condition="is">Execute processes remotely</Description>
+                </Rule>
+                <Rule name="" groupRelation="or">
+                    <Image condition="image">PsExec.exe</Image>
+                    <Image condition="image">PsExec64.exe</Image>
+                </Rule>
+            </ProcessCreate>
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>

@@ -197,6 +197,14 @@ func (hm *HostManager) LoadData() error {
 			return err
 		}
 		for _, proc := range procs { // load processes
+			host.Procs[proc.ProcessGuid] = proc
+			features, err := PgConn.GetFeaturesByProcess(host.HostId, proc.ProcessGuid)
+			if err != nil {
+				return err
+			}
+			proc.Features = features
+		}
+		for _, proc := range host.Procs { // load process relationship
 			if proc.ParentPGuid != "" {
 				parent := host.GetProcess(proc.ParentPGuid)
 				if parent == nil {
@@ -205,18 +213,9 @@ func (hm *HostManager) LoadData() error {
 				proc.Parent = parent
 				parent.AddChildProc(proc)
 			}
-			host.Procs[proc.ProcessGuid] = proc
-
-			// load features
-			features, err := PgConn.GetFeaturesByProcess(host.HostId, proc.ProcessGuid)
-			if err != nil {
-				return err
-			}
-			if len(features) > 0 {
-				proc.Features = features
-			}
 		}
 	}
+
 	// load all IOCs
 	iocs, err := PgConn.GetAllIOCs()
 	if err != nil {
@@ -279,6 +278,9 @@ func (hm *HostManager) SaveFeature(fea *MitreATTCKResult) error {
 }
 
 func (hm *HostManager) OnMitreAttackAlert(fea *MitreATTCKResult) {
+	if fea.Technique == nil {
+		return
+	}
 	host := hm.GetHost(fea.HostId)
 	if host == nil {
 		hm.WaitAlertCh <- fea

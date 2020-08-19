@@ -32,7 +32,9 @@ func (actLog *ActivityLog) Save() error {
 	if err != nil {
 		return err
 	}
-	if _, err = RedisConn.Do("LPUSH", "activity-logs", jsonLog); err != nil {
+	redisConn := RedisConnPool.Get()
+	defer redisConn.Close()
+	if _, err = redisConn.Do("LPUSH", "activity-logs", jsonLog); err != nil {
 		return err
 	}
 	return nil
@@ -120,7 +122,9 @@ func NewEngine(configFilePath string) (*Engine, error) {
 	// get kafka offset
 	var lastOffset int64
 	if engine.Config.KafkaParseFrom == "last" {
-		val, err := redis.Int64(RedisConn.Do("GET", "lastKafkaOffset"))
+		redisConn := RedisConnPool.Get()
+		defer redisConn.Close()
+		val, err := redis.Int64(redisConn.Do("GET", "lastKafkaOffset"))
 		if err != nil && err != redis.ErrNil {
 			return nil, err
 		}
@@ -148,6 +152,9 @@ func NewEngine(configFilePath string) (*Engine, error) {
 		return nil, err
 	}
 	if err := engine.FilterEngine.Register(NewTimestompFilter()); err != nil {
+		return nil, err
+	}
+	if err := engine.FilterEngine.Register(NewSCExeFilter()); err != nil {
 		return nil, err
 	}
 	// signal handling
@@ -179,7 +186,9 @@ func (engine *Engine) Start() error {
 		if err := PgConn.DeleteAll(); err != nil { // clean all previous db
 			return fmt.Errorf("cannot delete process-related tables, %s", err)
 		}
-		if _, err := RedisConn.Do("DEL", "activity-logs"); err != nil {
+		redisConn := RedisConnPool.Get()
+		defer redisConn.Close()
+		if _, err := redisConn.Do("DEL", "activity-logs"); err != nil {
 			return fmt.Errorf("cannot clean db on redis, %s", err)
 		}
 	} else if err := engine.HostManager.LoadData(); err != nil {
@@ -229,7 +238,9 @@ func (engine *Engine) Start() error {
 		msg = new(Message)
 	}
 	if lastOffset > preOffset {
-		if _, err := RedisConn.Do("SET", "lastKafkaOffset", lastOffset+1); err != nil {
+		redisConn := RedisConnPool.Get()
+		defer redisConn.Close()
+		if _, err := redisConn.Do("SET", "lastKafkaOffset", lastOffset+1); err != nil {
 			log.Warnf("cannot save last kafka offset, %s", err)
 		}
 	}
@@ -281,7 +292,7 @@ func (engine *Engine) Close() {
 	if err := engine.Reader.Close(); err != nil {
 		log.Warn("cannot close Kafka Reader, ", err)
 	}
-	if err := RedisConn.Close(); err != nil {
+	if err := RedisConnPool.Close(); err != nil {
 		log.Warn("cannot close Redis Connection, ", err)
 	}
 	if err := PgConn.Close(); err != nil {
@@ -292,7 +303,9 @@ func (engine *Engine) Close() {
 // request handler for "/api/activity-log"
 func (engine *Engine) AllLogHandler(c *gin.Context) {
 	actLogs := make([]*ActivityLogView, 0)
-	jsonActLogs, err := redis.Strings(RedisConn.Do("LRANGE", "activity-logs", 0, -1))
+	redisConn := RedisConnPool.Get()
+	defer redisConn.Close()
+	jsonActLogs, err := redis.Strings(redisConn.Do("LRANGE", "activity-logs", 0, -1))
 	if err != nil {
 		c.Status(http.StatusInternalServerError)
 		return

@@ -1,7 +1,7 @@
 <Sysmon schemaversion="4.30">
     <!--
         References:
-            https://attack.mitre.org/techniques/T1086/
+            https://attack.mitre.org/techniques/T1059/001/
         List:
             monitor the execution of powershell.exe
         Todo:
@@ -15,7 +15,7 @@
     <EventFiltering>
         <RuleGroup groupRelation="or">
             <ProcessCreate onmatch="include">
-                <Rule name="technique_id=T1086" groupRelation="or">
+                <Rule name="technique_id=T1059.001" groupRelation="or">
                     <Image condition="image">C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Image>
                 </Rule>
             </ProcessCreate>

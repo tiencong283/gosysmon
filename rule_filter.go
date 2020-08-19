@@ -171,10 +171,8 @@ func (mf *RuleFilter) Start() {
 			if labels["is_alert"] != "" {
 				isAlert, _ = strconv.ParseBool(labels["is_alert"])
 			}
-			alert := NewMitreATTCKResult(isAlert, labels["technique_id"], "", msg)
+			alert := NewMitreATTCKResult(isAlert, labels["technique_id"], "", msg, true)
 			alert.MergeContext(event.EventData)
-			alert.AddContext("EventID", event.EventID)
-			alert.AddContext("RecordID", event.RecordID)
 			alert.AddContext("RuleName", mf.SchemaDef.EventIDToRuleName[event.EventID])
 			mf.AlertCh <- alert
 		}
