@@ -81,7 +81,7 @@ type AlertView struct {
 	Timestamp string
 	Context   map[string]interface{}
 	Message   string
-	Technique *AttackPattern
+	Technique *MitreTechnique
 
 	HostName     string
 	ProcessImage string
@@ -115,7 +115,7 @@ type MitreATTCKResultView struct {
 	IsAlert   bool
 	Context   map[string]interface{}
 	Message   string
-	Technique *AttackPattern
+	Technique *MitreTechnique
 }
 
 func NewMitreATTCKResultView(fea *MitreATTCKResult) *MitreATTCKResultView {
@@ -239,7 +239,7 @@ func NewProcessNodeView(proc *Process, nodeType string) *ProcessNodeView {
 }
 
 type TechniqueCount struct {
-	Technique *AttackPattern
+	Technique *MitreTechnique
 	Count     int
 }
 type TechniqueStats struct {

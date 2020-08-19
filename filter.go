@@ -31,7 +31,7 @@ type MitreATTCKResult struct {
 	IsAlert   bool `json:"-"`
 	Context   map[string]interface{}
 	Message   string
-	Technique *AttackPattern
+	Technique *MitreTechnique
 }
 
 func NewMitreATTCKResult(isAlert bool, techID, message string, msg *Message) *MitreATTCKResult {
@@ -39,7 +39,7 @@ func NewMitreATTCKResult(isAlert bool, techID, message string, msg *Message) *Mi
 		Timestamp: msg.Event.getTimestamp(),
 		Context:   make(map[string]interface{}),
 		Message:   message,
-		Technique: Techniques[techID],
+		Technique: MitreTechniques[techID],
 		ResultId:  NewResultId(msg),
 		IsAlert:   isAlert,
 	}
@@ -85,9 +85,11 @@ func NewCommonFilterer(name string) CommonFilterer {
 
 // working with ATT&CK https://github.com/mitre/cti
 type RawAttackPattern struct {
-	Type            string `json:"type"`
-	Name            string `json:"name"`
-	KillChainPhases []struct {
+	Type                 string `json:"type"`
+	XMitreIsSubtechnique bool   `json:"x_mitre_is_subtechnique"`
+	XMitreVersion        string `json:"x_mitre_version"`
+	Name                 string `json:"name"`
+	KillChainPhases      []struct {
 		KillChainName string `json:"kill_chain_name"`
 		PhaseName     string `json:"phase_name"`
 	} `json:"kill_chain_phases"`
@@ -98,12 +100,13 @@ type RawAttackPattern struct {
 	} `json:"external_references"`
 }
 
-type AttackPattern struct {
-	Id, Url, Name string
-	Tactics       []string
+type MitreTechnique struct {
+	Id, Url, Name  string
+	Tactics        []string
+	IsSubTechnique bool
 }
 
-var Techniques = make(map[string]*AttackPattern)
+var MitreTechniques = make(map[string]*MitreTechnique)
 
 func init() {
 	// initialize
@@ -123,19 +126,20 @@ func init() {
 		log.Fatal(err)
 	}
 	for _, object := range attckContent.Objects {
-		if object.Type != "attack-pattern" {
+		if object.Type != "attack-pattern" || object.XMitreVersion == "" {
 			continue
 		}
 		id := object.ExternalReferences[0].ExternalID
-		Techniques[id] = &AttackPattern{
-			Id:      id,
-			Url:     object.ExternalReferences[0].URL,
-			Name:    object.Name,
-			Tactics: make([]string, 0),
+		MitreTechniques[id] = &MitreTechnique{
+			Id:             id,
+			Url:            object.ExternalReferences[0].URL,
+			Name:           object.Name,
+			Tactics:        make([]string, 0),
+			IsSubTechnique: object.XMitreIsSubtechnique,
 		}
 		for _, kc := range object.KillChainPhases {
 			if kc.KillChainName == "mitre-attack" {
-				Techniques[id].Tactics = append(Techniques[id].Tactics, kc.PhaseName)
+				MitreTechniques[id].Tactics = append(MitreTechniques[id].Tactics, kc.PhaseName)
 			}
 		}
 	}

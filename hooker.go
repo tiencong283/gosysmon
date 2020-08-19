@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	interval = 3 // seconds
+	interval = 2 // seconds
 )
 
 type Payload struct {

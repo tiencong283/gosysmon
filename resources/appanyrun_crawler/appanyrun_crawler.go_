@@ -1,0 +1,274 @@
+package appanyrun_crawler
+
+import (
+	"encoding/json"
+	"fmt"
+	"github.com/gorilla/websocket"
+	"log"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+)
+
+// This crawler will craw process tree and its Incidents mapping by a tag. The collected data was for research
+
+const (
+	// ws endpoint
+	endpoint = "wss://app.any.run/sockjs/158/r2jz998p/websocket"
+
+	malwareTag = "remcos"
+
+	// handshake message
+	connectMsg = `["{\"msg\":\"connect\",\"version\":\"1\",\"support\":[\"1\",\"pre2\",\"pre1\"]}"]`
+
+	// public tasks
+	//publicTasksUrlFormat        = `["{\"msg\":\"sub\",\"id\":\"vTWcZmngJ49BLcmsr\",\"name\":\"publicTasks\",\"params\":[%d,%d,{\"isPublic\":true,\"hash\":\"\",\"runtype\":[],\"verdict\":[],\"ext\":[],\"tag\":\"%s\",\"significant\":false,\"ip\":\"\",\"fileHash\":\"\",\"mitreId\":\"\",\"sid\":0,\"skip\":0}]}"]`
+	//publicTasksCounterUrlFormat = `["{\"msg\":\"method\",\"method\":\"publicTasksCounter\",\"params\":[{\"isPublic\":true,\"hash\":\"\",\"runtype\":[],\"verdict\":[],\"ext\":[],\"tag\":\"%s\",\"significant\":false,\"ip\":\"\",\"fileHash\":\"\",\"mitreId\":\"\",\"sid\":0,\"skip\":0}],\"id\":\"4\"}"]`
+
+	// PE EXE public tasks
+	publicTasksUrlFormat        = `["{\"msg\":\"sub\",\"id\":\"qDA2CKe3Km4N9MPAE\",\"name\":\"publicTasks\",\"params\":[%d,%d,{\"isPublic\":true,\"hash\":\"\",\"runtype\":[],\"verdict\":[],\"ext\":[\"0\"],\"ip\":\"\",\"domain\":\"\",\"fileHash\":\"\",\"mitreId\":\"\",\"sid\":0,\"significant\":false,\"tag\":\"%s\",\"skip\":0}]}"]`
+	publicTasksCounterUrlFormat = `["{\"msg\":\"method\",\"method\":\"publicTasksCounter\",\"params\":[{\"isPublic\":true,\"hash\":\"\",\"runtype\":[],\"verdict\":[],\"ext\":[\"0\"],\"ip\":\"\",\"domain\":\"\",\"fileHash\":\"\",\"mitreId\":\"\",\"sid\":0,\"significant\":false,\"tag\":\"%s\",\"skip\":0}],\"id\":\"7\"}"]`
+	publicTasksDoneMsg          = `{"msg":"ready","subs":["qDA2CKe3Km4N9MPAE"]}`
+
+	// process tree
+	processUrlFormat = `["{\"msg\":\"sub\",\"id\":\"ojEf2kD8Qo8Nt8aCg\",\"name\":\"process\",\"params\":[{\"taskID\":{\"$type\":\"oid\",\"$value\":\"%s\"},\"status\":100,\"important\":true}]}"]`
+	processDoneMsg   = `{"msg":"ready","subs":["ojEf2kD8Qo8Nt8aCg"]}`
+
+	// Mitre ATT&CK Mapping
+	allIncidentsUrlFormat = `["{\"msg\":\"sub\",\"id\":\"xhR3rXWu4M8X6xFow\",\"name\":\"allIncidents\",\"params\":[{\"$type\":\"oid\",\"$value\":\"%s\"}]}"]`
+	allIncidentsDoneMsg   = `{"msg":"ready","subs":["xhR3rXWu4M8X6xFow"]}`
+)
+
+func getPublicTasksUrl(tag string, numOfEntries, index int) string {
+	return fmt.Sprintf(publicTasksUrlFormat, numOfEntries, index, tag)
+}
+
+func getPublicTasksCounterUrl(tag string) string {
+	return fmt.Sprintf(publicTasksCounterUrlFormat, tag)
+}
+
+func getProcessUrl(taskId string) string {
+	return fmt.Sprintf(processUrlFormat, taskId)
+}
+
+func getAllIncidentsUrl(taskId string) string {
+	return fmt.Sprintf(allIncidentsUrlFormat, taskId)
+}
+
+func sendAll(conn *websocket.Conn, msg string) error {
+	if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func readAll(conn *websocket.Conn) (string, error) {
+	_, bytes, err := conn.ReadMessage()
+	if err != nil {
+		return "", err
+	}
+	if bytes[0] == 'a' && bytes[1] == '[' { // if the message in format a[payload]
+		msg, err := strconv.Unquote(string(bytes[2 : len(bytes)-1]))
+		if err != nil {
+			return "", err
+		}
+		return msg, nil
+	}
+	return string(bytes), nil
+}
+
+func dumpProcessTree(conn *websocket.Conn, taskId string) ([]*Process, error) {
+	processes := make([]*Process, 0)
+	if err := sendAll(conn, getProcessUrl(taskId)); err != nil {
+		return nil, err
+	}
+	for { // receive all
+		rawProc := new(RawProcess)
+		msg, err := readAll(conn)
+		if err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(msg), &rawProc); err != nil {
+			log.Println(msg)
+			return nil, err
+		}
+		if rawProc.Fields.Pid == 0 && msg == processDoneMsg {
+			break
+		}
+		processes = append(processes, NewProcess(rawProc))
+	}
+	return processes, nil
+}
+
+func dumpAllIncidents(conn *websocket.Conn, taskId string) ([]*Incident, error) {
+	incidents := make([]*Incident, 0)
+	if err := sendAll(conn, getAllIncidentsUrl(taskId)); err != nil {
+		return nil, err
+	}
+	for { // receive all
+		rawIncident := new(RawIncident)
+		msg, err := readAll(conn)
+		if err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(msg), &rawIncident); err != nil {
+			return nil, err
+		}
+		if rawIncident.Collection == "" && msg == allIncidentsDoneMsg {
+			break
+		}
+		incidents = append(incidents, NewIncident(rawIncident))
+	}
+	return incidents, nil
+}
+
+func dumpToFile(fileName string, bytes []byte) error {
+	file, err := os.Create(fileName)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = file.Write(bytes)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func dumpTask(conn *websocket.Conn, task *Task) error {
+	processes, err := dumpProcessTree(conn, task.ID)
+	if err != nil {
+		return err
+	}
+	incidents, err := dumpAllIncidents(conn, task.ID)
+	if err != nil {
+		return err
+	}
+	model := &ProcessTreeModel{
+		Processes: processes,
+		Incidents: incidents,
+	}
+	bytes, err := json.MarshalIndent(model, "", " ")
+	if err != nil {
+		return err
+	}
+	taskFileName := fmt.Sprintf("%s/%s.json", malwareTag, getTaskUrl(task))
+	if err := dumpToFile(taskFileName, bytes); err != nil {
+		return err
+	}
+	return nil
+}
+
+func NewAppAnyClient() *websocket.Conn {
+	reqHeader := make(http.Header)
+	reqHeader.Add("Host", "app.any.run")
+	reqHeader.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.105 Safari/537.36")
+	reqHeader.Add("Origin", "https://app.any.run")
+
+	conn, _, err := websocket.DefaultDialer.Dial(endpoint, reqHeader)
+	if err != nil {
+		log.Fatal(err)
+	}
+	conn.ReadMessage()
+	conn.ReadMessage()
+
+	// connect
+	sendAll(conn, connectMsg)
+	msg, err := readAll(conn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if !strings.Contains(msg, "connected") {
+		log.Fatal("connection to app.any failed")
+	}
+	return conn
+}
+
+func countTasksByTag(conn *websocket.Conn, malwareTag string) (int, error) {
+	// count public tasks by tag
+	var countResult Result
+	if err := sendAll(conn, getPublicTasksCounterUrl(malwareTag)); err != nil {
+		return 0, err
+	}
+	// a["{\"msg\":\"updated\",\"methods\":[\"4\"]}"]
+	conn.ReadMessage()
+	msg, err := readAll(conn)
+	if err != nil {
+		return 0, err
+	}
+	if err := json.Unmarshal([]byte(msg), &countResult); err != nil {
+		return 0, err
+	}
+	return countResult.Result.Count, nil
+}
+
+func getTasksByTag(conn *websocket.Conn, malwareTag string, numOfEntries, index int) ([]*Task, error) {
+	tasks := make([]*Task, 0)
+	// get public tasks
+	if err := sendAll(conn, getPublicTasksUrl(malwareTag, numOfEntries, index)); err != nil {
+		return nil, err
+	}
+	for { // receive all
+		task := new(Task)
+		msg, err := readAll(conn)
+		if err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(msg), &task); err != nil {
+			return nil, err
+		}
+		if task.Collection == "" && msg == publicTasksDoneMsg {
+			break
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks, nil
+}
+
+func getTaskIdentity(task *Task) string {
+	mainObject := task.Fields.Public.Objects.MainObject
+	format := "name: %s, MD5: %s, TaskID: %s"
+	switch mainObject.Type {
+	case "file":
+		return fmt.Sprintf(format, mainObject.Names.Basename, mainObject.Hashes.Md5, mainObject.Task.Value)
+	case "url":
+		return fmt.Sprintf(format, mainObject.Names.URL, mainObject.Hashes.Md5, mainObject.Task.Value)
+	}
+	return "unknown"
+}
+
+func getTaskUrl(task *Task) string {
+	return task.Fields.UUID
+}
+
+func main() {
+	conn := NewAppAnyClient()
+	defer conn.Close()
+
+	taskCount, err := countTasksByTag(conn, malwareTag)
+	if err != nil {
+		log.Println("cannot count tasks, ", err)
+		return
+	}
+	log.Printf("Number of tasks for %s: %d\n", malwareTag, taskCount)
+
+	tasks, err := getTasksByTag(conn, malwareTag, 50, 0)
+	if err != nil {
+		log.Println("cannot get tasks, ", err)
+		return
+	}
+	os.Mkdir(malwareTag, os.ModePerm)
+	conn.Close()
+
+	for _, task := range tasks {
+		log.Println(getTaskIdentity(task))
+		conn := NewAppAnyClient()
+		if err := dumpTask(conn, task); err != nil {
+			log.Println("cannot dump task, ", err)
+			conn.Close()
+			return
+		}
+		conn.Close()
+	}
+}

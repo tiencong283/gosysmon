@@ -283,7 +283,7 @@ func (conn *DBConn) GetFeaturesByProcess(hostId, processGuid string) ([]*MitreAT
 		if err := json.Unmarshal([]byte(context), &fea.Context); err != nil {
 			return nil, err
 		}
-		fea.Technique = Techniques[techID]
+		fea.Technique = MitreTechniques[techID]
 		features = append(features, fea)
 	}
 	if err := rows.Err(); err != nil {
@@ -333,7 +333,7 @@ func (conn *DBConn) GetAlertsOrderByTimestampDesc() ([]*MitreATTCKResult, error)
 		if err := json.Unmarshal([]byte(context), &fea.Context); err != nil {
 			return nil, err
 		}
-		fea.Technique = Techniques[techID]
+		fea.Technique = MitreTechniques[techID]
 		alerts = append(alerts, fea)
 	}
 	if err := rows.Err(); err != nil {
@@ -366,7 +366,7 @@ func (conn *DBConn) GetFeaturesByProc(hostId, processGuid string) ([]*MitreATTCK
 		}
 		fea.HostId = hostId
 		fea.ProcessGuid = processGuid
-		fea.Technique = Techniques[techID]
+		fea.Technique = MitreTechniques[techID]
 		alerts = append(alerts, fea)
 	}
 	if err := rows.Err(); err != nil {
@@ -391,7 +391,7 @@ func (conn *DBConn) GetTechniqueStats() (*TechniqueStats, error) {
 		if err := rows.Scan(&techID, &techCount.Count); err != nil {
 			return nil, err
 		}
-		techCount.Technique = Techniques[techID]
+		techCount.Technique = MitreTechniques[techID]
 		result.Counts = append(result.Counts, techCount)
 	}
 	if err := rows.Err(); err != nil {

@@ -92,12 +92,17 @@ class Home extends React.Component {
 
     componentDidMount() {
         document.title = title
+
         if (window["WebSocket"]) {
             this.startWebsocket()
         } else {
             console.log("Warn: WebSocket is not supported")
         }
         this.loadTechStats()
+    }
+
+    afterChartCreated = (chart) => {
+        this.internalChart = chart
     }
 
     startWebsocket() {
@@ -112,20 +117,11 @@ class Home extends React.Component {
         }
         this.conn.onmessage = event => {
             let msg = JSON.parse(event.data)
-            let eventRates = this.state.eventRateChartOptions.series[0].data
-            eventRates.push([msg.Timestamp, msg.EventRate])
-            if (eventRates.length > this.eventRateThreshold) {
-                eventRates = eventRates.slice(1)
+            let shouldShift = false
+            if (this.internalChart.series[0].data.length > this.evenRateTheshold) {
+                shouldShift = true
             }
-            this.setState({
-                eventRateChartOptions: {
-                    series: [
-                        {
-                            data: eventRates
-                        }
-                    ]
-                }
-            })
+            this.internalChart.series[0].addPoint([msg.Timestamp, msg.EventRate], true, shouldShift)
         }
     }
 
@@ -211,7 +207,9 @@ class Home extends React.Component {
                     <div>
                         <HighchartsReact
                             highcharts={Highcharts}
-                            options={this.state.eventRateChartOptions}/>
+                            options={this.state.eventRateChartOptions}
+                            callback={this.afterChartCreated}
+                        />
                     </div>
                 </div>
                 <div className="technique-stats cell medium-6">
