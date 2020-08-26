@@ -217,9 +217,9 @@ class Home extends React.Component {
                             onClick={this.handleResetTechniqueStats}>Refresh
                     </button>
                     <div>
-                        {<HighchartsReact
+                        <HighchartsReact
                             highcharts={Highcharts}
-                            options={this.state.techStatsChartOptions}/>}
+                            options={this.state.techStatsChartOptions}/>
                     </div>
                 </div>
             </div>

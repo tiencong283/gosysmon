@@ -157,6 +157,9 @@ func NewEngine(configFilePath string) (*Engine, error) {
 	if err := engine.FilterEngine.Register(NewSCExeFilter()); err != nil {
 		return nil, err
 	}
+	if err := engine.FilterEngine.Register(NewScheduledTaskFilter()); err != nil {
+		return nil, err
+	}
 	// signal handling
 	engine.TermChan = make(chan os.Signal, 64)
 	signal.Notify(engine.TermChan, os.Interrupt, syscall.SIGTERM)

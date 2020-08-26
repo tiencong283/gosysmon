@@ -22,7 +22,7 @@ var FilteredImages = []string{
 	"C:\\Windows\\System32\\RuntimeBroker.exe",
 }
 
-// TimestompFilter filters T1070.006 technique
+// TimestompFilter filters the technique T1070.006
 type TimestompFilter struct {
 	CommonFilterer
 	TechniqueId string
@@ -39,7 +39,7 @@ func (filter *TimestompFilter) MessageCh() chan *Message {
 func NewTimestompFilter() *TimestompFilter {
 	return &TimestompFilter{
 		CommonFilterer: NewCommonFilterer("Timestomp  Filter"),
-		TechniqueId:    "T1099",
+		TechniqueId:    "T1070.006",
 	}
 }
 
@@ -76,8 +76,6 @@ func (filter *TimestompFilter) Start() {
 			alertMsg := fmt.Sprintf("Creation timestamp of %s has been changed to older", GetImageName(targetFileName))
 			alert := NewMitreATTCKResult(true, filter.TechniqueId, alertMsg, msg, true)
 			alert.MergeContext(event.EventData)
-			alert.AddContext("EventID", event.EventID)
-			alert.AddContext("RecordID", event.RecordID)
 			filter.AlertCh <- alert
 		}
 	}

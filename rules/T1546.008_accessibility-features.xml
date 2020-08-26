@@ -1,7 +1,7 @@
 <Sysmon schemaversion="4.30">
     <!--
         References:
-            https://attack.mitre.org/techniques/T1015/
+            https://attack.mitre.org/techniques/T1546/008/
             https://www.slideshare.net/DennisMaldonado5/sticky-keys-to-the-kingdom
             https://www.crowdstrike.com/blog/registry-analysis-with-crowdresponse/
         List:
@@ -12,11 +12,11 @@
         Todo:
             Covering binary replacement case
         Testing:
-            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1015/T1015.md
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1546.008/T1546.008.md
     -->
 
     <EventFiltering>
-        <RuleGroup name="technique_id=T1015" groupRelation="and">
+        <RuleGroup name="technique_id=T1546.008" groupRelation="and">
             <RegistryEvent onmatch="include">
 
                 <EventType condition="is" case="true">SetValue</EventType>

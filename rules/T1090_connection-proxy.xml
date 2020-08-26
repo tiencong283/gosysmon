@@ -21,9 +21,7 @@
     <EventFiltering>
         <RuleGroup groupRelation="or">
             <RegistryEvent onmatch="include">
-                <!-- avoid duplicate with CreateKey -->
-                <EventType condition="is" case="true">SetValue</EventType>
-                <Rule name="technique_id=T1090"  groupRelation="or">
+                <Rule name="technique_id=T1090" groupRelation="or">
                     <TargetObject condition="begin with">HKLM\System\CurrentControlSet\Services\PortProxy\v4tov4\tcp</TargetObject>
                     <TargetObject condition="is">HKLM\Software\Policies\Microsoft\Windows\DataCollection\TelemetryProxyServer</TargetObject>
                     <TargetObject condition="is">HKLM\Software\Policies\Microsoft\Windows\DataCollection\DisableEnterpriseAuthProxy</TargetObject>

@@ -1,7 +1,7 @@
 <Sysmon schemaversion="4.30">
     <!--
         References:
-            https://attack.mitre.org/techniques/T1060/
+            https://attack.mitre.org/techniques/T1547/001/
             https://docs.microsoft.com/en-us/windows/win32/setupapi/run-and-runonce-registry-keys
             https://oddvar.moe/2018/03/21/persistence-using-runonceex-hidden-from-autoruns-exe/
             https://docs.microsoft.com/en-us/configmgr/develop/reference/core/clients/client-classes/sms_autostartsoftware-client-wmi-class
@@ -30,13 +30,12 @@
                 HKU\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows\Load
                 HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\BootExecute
         Testing:
-            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1060/T1060.md
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1547.001/T1547.001.md (#1, #2, #3)
     -->
 
     <EventFiltering>
-        <RuleGroup name="technique_id=T1060" groupRelation="and">
+        <RuleGroup name="technique_id=T1547.001" groupRelation="and">
             <RegistryEvent onmatch="include">
-
                 <EventType condition="is" case="true">SetValue</EventType>
                 <Rule groupRelation="or">
                     <TargetObject condition="begin with">HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run</TargetObject>
@@ -56,7 +55,6 @@
                     <TargetObject condition="begin with">HKU\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run</TargetObject>
                     <TargetObject condition="begin with">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run</TargetObject>
                 </Rule>
-
             </RegistryEvent>
         </RuleGroup>
     </EventFiltering>
