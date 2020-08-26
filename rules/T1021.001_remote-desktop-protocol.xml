@@ -16,7 +16,7 @@
     <EventFiltering>
         <RuleGroup name="" groupRelation="or">
             <ProcessCreate onmatch="include">
-                <Rule name="technique_id=T1076" groupRelation="or">
+                <Rule name="technique_id=T1021.001" groupRelation="or">
                     <OriginalFileName condition="is">mstsc.exe</OriginalFileName>
                     <OriginalFileName condition="is">tscon.exe</OriginalFileName>
                     <CommandLine condition="contains">C:\windows\system32\tscon.exe</CommandLine>
@@ -26,17 +26,17 @@
                 </Rule>
             </ProcessCreate> 
             <NetworkConnect onmatch="include">
-                <Rule name="technique_id=T1076" groupRelation="or">
+                <Rule name="technique_id=T1021.001" groupRelation="or">
                     <Image condition="image">C:\Windows\System32\mstsc.exe</Image>
                 </Rule>
             </NetworkConnect>
             <FileCreate onmatch="include">
-                <Rule name="technique_id=T1076" groupRelation="or">
+                <Rule name="technique_id=T1021.001" groupRelation="or">
                     <TargetFilename condition="end with">\AppData\Local\Microsoft\Terminal Server Client\Cache</TargetFilename>
                 </Rule>
             </FileCreate>
             <RegistryEvent onmatch="include">
-                <Rule name="technique_id=T1076" groupRelation="or">
+                <Rule name="technique_id=T1021.001" groupRelation="or">
                     <TargetObject condition="begin with">HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services</TargetObject>
                     <TargetObject condition="begin with">HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\RemoteComputer</TargetObject>
                 </Rule>

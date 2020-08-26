@@ -14,13 +14,13 @@
     <EventFiltering>
         <RuleGroup name="" groupRelation="or">
             <ProcessCreate onmatch="include">
-                <Rule name="technique_id=T1107" groupRelation="or">
+                <Rule name="technique_id=T1070.004" groupRelation="or">
                     <OriginalFileName condition="is">sdelete.exe</OriginalFileName>
                     <OriginalFileName condition="is">sdelete64.exe</OriginalFileName>
                 </Rule>
             </ProcessCreate>
             <RegistryEvent onmatch="include">
-                <Rule name="technique_id=T1107" groupRelation="or">
+                <Rule name="technique_id=T1070.004" groupRelation="or">
                     <TargetObject condition="contains">\Sysinternals\sdelete</TargetObject>
                     <TargetObject condition="contains">\Sysinternals\sdelete64</TargetObject>
                 </Rule>

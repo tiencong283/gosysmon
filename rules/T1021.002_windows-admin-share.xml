@@ -16,55 +16,55 @@
     <EventFiltering>
         <RuleGroup name="" groupRelation="or">
             <ProcessCreate onmatch="include">
-                <Rule name="technique_id=T1077" groupRelation="and">
+                <Rule name="technique_id=T1021.002" groupRelation="and">
                     <OriginalFileName condition="is">net.exe</OriginalFileName>
                     <CommandLine condition="contains">use</CommandLine>
                     <CommandLine condition="contains">\C$</CommandLine>
                 </Rule>
-                <Rule name="technique_id=T1077" groupRelation="and">
+                <Rule name="technique_id=T1021.002" groupRelation="and">
                     <OriginalFileName condition="is">net.exe</OriginalFileName>
                     <CommandLine condition="contains">use</CommandLine>
                     <CommandLine condition="contains">\ADMIN$</CommandLine>
                 </Rule>
-                <Rule name="technique_id=T1077" groupRelation="and">
+                <Rule name="technique_id=T1021.002" groupRelation="and">
                     <OriginalFileName condition="is">net.exe</OriginalFileName>
                     <CommandLine condition="contains">use</CommandLine>
                     <CommandLine condition="contains">\IPC$</CommandLine>
                 </Rule>
-                <Rule name="technique_id=T1077" groupRelation="and">
+                <Rule name="technique_id=T1021.002" groupRelation="and">
                     <CommandLine condition="contains">"C:\Windows\system32\net.exe" use</CommandLine>
                     <CommandLine condition="contains">\C$</CommandLine>
                 </Rule>
-                <Rule name="technique_id=T1077" groupRelation="and">
+                <Rule name="technique_id=T1021.002" groupRelation="and">
                     <CommandLine condition="contains">"C:\Windows\system32\net.exe" use</CommandLine>
                     <CommandLine condition="contains">\ADMIN$</CommandLine>
                 </Rule>
-                <Rule name="technique_id=T1077" groupRelation="and">
+                <Rule name="technique_id=T1021.002" groupRelation="and">
                     <CommandLine condition="contains">"C:\Windows\system32\net.exe" use</CommandLine>
                     <CommandLine condition="contains">\IPC$</CommandLine>
                 </Rule>
-                <Rule name="technique_id=T1077" groupRelation="and">
+                <Rule name="technique_id=T1021.002" groupRelation="and">
                     <CommandLine condition="contains">\\</CommandLine>
                     <CommandLine condition="contains">\C$</CommandLine>
                 </Rule>
 
-                <Rule name="technique_id=T1077" groupRelation="and">
+                <Rule name="technique_id=T1021.002" groupRelation="and">
                     <CommandLine condition="contains">\\</CommandLine>
                     <CommandLine condition="contains">\ADMIN$</CommandLine>
                 </Rule>
-                <Rule name="technique_id=T1077" groupRelation="and">
+                <Rule name="technique_id=T1021.002" groupRelation="and">
                     <CommandLine condition="contains">\\</CommandLine>
                     <CommandLine condition="contains">\IPC$</CommandLine>
                 </Rule>
             </ProcessCreate>
             <RegistryEvent onmatch="include">
-                <Rule name="technique_id=T1077" groupRelation="or">
+                <Rule name="technique_id=T1021.002" groupRelation="or">
                     <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\LocalAccountTokenFilterPolicy</TargetObject>
                     <TargetObject condition="is">HKLM\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters\AutoShareServer</TargetObject>
                 </Rule>
             </RegistryEvent>
             <PipeEvent onmatch="include">
-                <Rule name="technique_id=T1077" groupRelation="or">
+                <Rule name="technique_id=T1021.002" groupRelation="or">
                     <PipeName condition="contains">\PSEXESVC</PipeName>
                 </Rule>
             </PipeEvent>
