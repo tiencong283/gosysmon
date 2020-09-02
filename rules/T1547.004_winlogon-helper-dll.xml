@@ -1,0 +1,26 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1547/004/
+            https://docs.microsoft.com/en-us/windows/win32/sysinfo/32-bit-and-64-bit-application-data-in-the-registry
+        List:
+            HKLM\Software[\Wow6432Node\]\Microsoft\Windows NT\CurrentVersion\Winlogon\
+            HKCU\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\
+        Todo:
+            Adversaries may abuse features of Winlogon to execute DLLs and/or executables when a user logs in
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1547.004
+    -->
+
+    <EventFiltering>
+        <RuleGroup groupRelation="or">
+            <RegistryEvent onmatch="include">
+                <Rule name="technique_id=T1547.004" groupRelation="or">
+                    <TargetObject condition="contains">Microsoft\Windows NT\CurrentVersion\Winlogon\Notify</TargetObject>
+                    <TargetObject condition="contains">Microsoft\Windows NT\CurrentVersion\Winlogon\Userinit</TargetObject>
+                    <TargetObject condition="contains">Microsoft\Windows NT\CurrentVersion\Winlogon\Shell</TargetObject>
+                </Rule>
+            </RegistryEvent>
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>

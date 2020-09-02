@@ -1,0 +1,19 @@
+<Sysmon schemaversion="4.30">
+  <EventFiltering>
+    <RuleGroup name="" groupRelation="or">
+			<ProcessCreate onmatch="include">
+				<Rule  name="technique_id=T1546.002" groupRelation="or">
+					<CommandLine condition="contains">.scr</CommandLine>						
+				</Rule>
+			</ProcessCreate>		
+			<RegistryEvent onmatch="include">
+				<Rule name="technique_id=T1546.002" groupRelation="or">
+					<TargetObject condition="contains">\Control Panel\Desktop\SCRNSAVE.EXE</TargetObject>
+					<TargetObject condition="contains">\Control Panel\Desktop\ScreenSaverIsSecure</TargetObject>
+					<TargetObject condition="contains">\Control Panel\Desktop\ScreenSaveTimeout</TargetObject>
+					<TargetObject condition="contains">\Control Panel\Desktop\ScreenSaveActive</TargetObject>
+				</Rule>
+	        </RegistryEvent>
+    </RuleGroup>
+  </EventFiltering>
+</Sysmon>
