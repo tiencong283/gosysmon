@@ -11,14 +11,10 @@ https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1202/T1202.m
 				</Rule>
 				<Rule name="technique_id=T1202" groupRelation="or">
 					<ParentImage condition="image">c:\windows\system32\pcalua.exe</ParentImage>
-					<ParentImage condition="image">c:\windows\system32\cscript.exe</ParentImage>
-					<ParentImage condition="image">c:\windows\system32\wscript.exe</ParentImage>
 					<ParentImage condition="image">c:\windows\system32\control.exe</ParentImage>
 				</Rule>
 				<Rule name="technique_id=T1202" groupRelation="or">
 					<OriginalFileName condition="is">bash.exe</OriginalFileName>
-					<OriginalFileName condition="is">cscript.exe</OriginalFileName>
-					<OriginalFileName condition="is">wscript.exe</OriginalFileName>
 					<OriginalFileName condition="is">certutil.exe</OriginalFileName>
 					<OriginalFileName condition="is">winrs.exe</OriginalFileName>
 					<OriginalFileName condition="is">forfiles.exe</OriginalFileName>
