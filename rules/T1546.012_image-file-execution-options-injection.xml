@@ -11,12 +11,25 @@
     -->
 
     <EventFiltering>
-        <RuleGroup groupRelation="or">
+        <RuleGroup groupRelation="and">
             <RegistryEvent onmatch="include">
                 <Rule name="technique_id=T1546.012" groupRelation="and">
                     <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options</TargetObject>
                     <TargetObject condition="contains">Debugger</TargetObject>
                 </Rule>
+            </RegistryEvent>
+            <RegistryEvent onmatch="exclude">
+                <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\sethc.exe\Debugger</TargetObject>
+                <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\utilman.exe\Debugger</TargetObject>
+                <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\osk.exe\Debugger</TargetObject>
+                <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\Magnify.exe\Debugger</TargetObject>
+                <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\Narrator.exe\Debugger</TargetObject>
+                <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\DisplaySwitch.exe\Debugger</TargetObject>
+                <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\AtBroker.exe\Debugger</TargetObject>
+            </RegistryEvent>
+        </RuleGroup>
+        <RuleGroup groupRelation="or">
+            <RegistryEvent onmatch="include">
                 <Rule name="technique_id=T1546.012" groupRelation="and">
                     <TargetObject condition="is">HKLM\SOFTWARE\Wow6432Node\Microsoft\Windows NT\CurrentVersion\Image File Execution Options</TargetObject>
                     <TargetObject condition="contains">Debugger</TargetObject>
@@ -27,4 +40,7 @@
             </RegistryEvent>
         </RuleGroup>
     </EventFiltering>
+            
+            
+            
 </Sysmon>
