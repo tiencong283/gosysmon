@@ -1,0 +1,11 @@
+<Sysmon schemaversion="4.30">
+  <EventFiltering>
+    <RuleGroup name="" groupRelation="or">			
+			<RegistryEvent onmatch="include">
+				<Rule name="technique_id=T1546.009" groupRelation="or">
+					<TargetObject condition="contains">HKLM\System\CurrentControlSet\Control\Session Manager\AppCertDLLs</TargetObject>
+				</Rule>
+	        </RegistryEvent>
+    </RuleGroup>
+  </EventFiltering>
+</Sysmon>
