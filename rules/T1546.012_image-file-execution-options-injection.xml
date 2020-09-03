@@ -1,0 +1,22 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1546/012/
+        List:
+        Todo:
+            Adversaries may establish persistence and/or elevate privileges by executing malicious content triggered by Image File Execution Options (IEFO) debuggers.
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1546.012
+    -->
+
+    <EventFiltering>
+        <RuleGroup groupRelation="or">
+            <RegistryEvent onmatch="include">
+                <Rule name="technique_id=T1546.012" groupRelation="or">
+                    <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\Debugger</TargetObject>
+                    <TargetObject condition="begin with">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SilentProcessExit</TargetObject>
+                </Rule>
+            </RegistryEvent>
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>
