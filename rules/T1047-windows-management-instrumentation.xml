@@ -1,52 +1,6 @@
 <Sysmon schemaversion="4.30">
     <EventFiltering>
         <RuleGroup name="" groupRelation="or">
-			<ProcessCreate onmatch="include">
-				<Rule name="technique_id=T1047" groupRelation="or">
-					<ParentImage condition="image">C:\Windows\System32\wbem\WmiPrvSE.exe</ParentImage>
-					<OriginalFileName condition="is">wmiprvse.exe</OriginalFileName>
-				</Rule>
-				<Rule name="technique_id=T1047" groupRelation="or">
-					<Image condition="begin with">C:\WINDOWS\system32\wbem\scrcons.exe</Image>
-					<Image condition="image">C:\Windows\System32\wbem\WMIC.exe</Image>
-				</Rule>
-			</ProcessCreate>
-			<ImageLoad onmatch="include">
-				<Rule name="technique_id=T1047" groupRelation="or">
-					<ImageLoaded condition="end with">wmiutils.dll</ImageLoaded>
-					<Image condition="image">C:\Windows\System32\wbem\WMIC.exe</Image>
-				</Rule>
-			</ImageLoad>
-			<!-- Event ID 10 == ProcessAccess. -->
-			<ProcessAccess onmatch="include">
-				<Rule name="technique_id=T1047" groupRelation="or">
-					<TargetImage condition="is">C:\Windows\System32\Wbem\WMIC.exe</TargetImage>
-					<TargetImage condition="is">C:\Windows\system32\wbem\wmiprvse.exe</TargetImage>
-				</Rule>
-			</ProcessAccess>
-			<FileCreate onmatch="include">
-				<Rule name="technique_id=T1047" groupRelation="or">
-					<TargetFilename  condition="begin with">C:\Windows\System32\Wbem</TargetFilename>
-					<Image  condition="begin with">c:\windows\system32\wbem\scrcons.exe</Image>
-					<TargetFilename condition="begin with">C:\Windows\Prefetch\WMIC.EXE</TargetFilename>
-				</Rule>
-			</FileCreate>
-			<RegistryEvent onmatch="include">
-				<Rule name="technique_id=T1047" groupRelation="or">
-					<Image  condition="begin with">C:\Windows\system32\wbem\wmiprvse.exe</Image>
-					<TargetObject condition="contains">HKLM\SOFTWARE\Microsoft\Wbem</TargetObject>
-				</Rule>
-				<Rule name="technique_id=T1047" groupRelation="and">
-					<Image condition="begin with">C:\Windows\System32\Wbem\WMIC.exe</Image>
-					<TargetObject condition="contains">HKLM\System\CurrentControlSet\Services\Tcpip\Parameters</TargetObject>
-				</Rule>
-			</RegistryEvent>
-			<!-- Event ID 17,18 == PipeEvent. Log Named pipe created & Named pipe connected -->
-			<PipeEvent onmatch="include">
-				<Rule name="technique_id=T1047" groupRelation="or">
-					<Image condition="image">C:\Windows\system32\wbem\wmiprvse.exe</Image>
-				</Rule>
-			</PipeEvent>
 			<WmiEvent onmatch="include">
 				<Rule name="technique_id=T1047" groupRelation="or">
 					<Operation condition="is">Created</Operation>
