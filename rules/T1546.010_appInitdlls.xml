@@ -1,0 +1,15 @@
+<Sysmon schemaversion="4.30">
+  <EventFiltering>
+    <RuleGroup name="" groupRelation="or">			
+			<RegistryEvent onmatch="include">
+				<Rule name="technique_id=T1546.010" groupRelation="or">
+					<TargetObject condition="contains">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows\Appinit_Dlls</TargetObject>
+					<TargetObject condition="contains">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows\LoadAppInit_DLLs</TargetObject>
+					<TargetObject condition="contains">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows\RequireSignedAppInit_DLLs</TargetObject>
+					<TargetObject condition="contains">HKLM\SOFTWARE\Wow6432Node\Microsoft\Windows NT\CurrentVersion\Windows\Appinit_Dlls</TargetObject>
+					<TargetObject condition="is">REGISTRY\MACHINE\SYSTEM\ControlSet001\Services\DNS\Parameters\ServerLevelPluginDll</TargetObject>
+				</Rule>
+	        </RegistryEvent>
+    </RuleGroup>
+  </EventFiltering>
+</Sysmon>

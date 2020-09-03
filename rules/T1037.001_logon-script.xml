@@ -1,0 +1,26 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1037/001/
+            
+        List:
+            Adversaries may use Windows logon scripts automatically executed at logon initialization to establish persistence. 
+			Windows allows logon scripts to be run whenever a specific user or group of users log into a system. 
+			This is done via adding a path to a script to the HKCU\Environment\UserInitMprLogonScript Registry key.
+        Todo:
+            Monitor for changes to Registry values associated with Windows logon scrips, nameley HKCU\Environment\UserInitMprLogonScript.
+        Testing:
+			https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1037.001
+    -->
+
+    <EventFiltering>
+        <RuleGroup groupRelation="or">
+            <RegistryEvent onmatch="include">
+                <Rule name="technique_id=T1037.001" groupRelation="and">
+                    <TargetObject condition="contains">HKU</TargetObject>
+                    <TargetObject condition="contains">\Environment\UserInitMprLogonScript</TargetObject>
+                </Rule>
+            </RegistryEvent>
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>
