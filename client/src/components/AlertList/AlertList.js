@@ -5,7 +5,7 @@ import AlertContextModel from "../AlertContextModel/AlertContextModel"
 import PaginationNav from "../PaginationNav/PaginationNav"
 
 const title = "Alert List - GoSysmon"
-const endpoint = "/api/alert"
+const endpoint = "http://localhost:9090/api/alert"
 
 $(document).click(function (event) {
     let $target = $(event.target)
@@ -29,6 +29,12 @@ class AlertList extends React.Component {
         }
         this.handlePrevious = this.handlePrevious.bind(this)
         this.handleNext = this.handleNext.bind(this)
+        this.handleUserInput = this.handleUserInput.bind(this)
+    }
+
+    handleUserInput(e) {
+        let searchedText = e.target.value
+        console.log(searchedText)
     }
 
     handleOpenSideBar(idx, event) {
@@ -121,6 +127,9 @@ class AlertList extends React.Component {
     render() {
         return (
             <div className="inner-content-wrapper">
+                <div className="search-bar">
+                    <input type="text" onChange={this.handleUserInput}/>
+                </div>
                 <PaginationNav paging={this.state.paging} handlePrevious={this.handlePrevious}
                                handleNext={this.handleNext}/>
                 <AlertContextModel alert={this.state.alert}/>
