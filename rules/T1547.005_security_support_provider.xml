@@ -1,0 +1,26 @@
+<Sysmon schemaversion="4.30">
+    <!--
+        References:
+            https://attack.mitre.org/techniques/T1547/005/
+        List:
+            HKLM\SYSTEM\CurrentControlSet\Control\Lsa\Security Packages
+            HKLM\SYSTEM\CurrentControlSet\Control\Lsa\OSConfig\Security Packages
+            HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\LSASS.exe
+        Todo:
+            Adversaries may abuse security support providers (SSPs) to execute DLLs when the system boots
+        Testing:
+            https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1547.005
+    -->
+
+    <EventFiltering>
+        <RuleGroup groupRelation="or">
+            <RegistryEvent onmatch="include">
+                <Rule name="technique_id=T1547.005" groupRelation="or">
+                    <TargetObject condition="is">HKLM\SYSTEM\CurrentControlSet\Control\Lsa\Security Packages</TargetObject>
+                    <TargetObject condition="is">HKLM\SYSTEM\CurrentControlSet\Control\Lsa\OSConfig\Security Packages</TargetObject>
+                    <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\LSASS.exe</TargetObject>
+                </Rule>
+            </RegistryEvent>
+        </RuleGroup>
+    </EventFiltering>
+</Sysmon>
