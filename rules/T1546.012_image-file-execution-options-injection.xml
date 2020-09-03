@@ -11,21 +11,23 @@
     -->
 
     <EventFiltering>
-        <RuleGroup groupRelation="and">
+        <RuleGroup name="technique_id=T1546.012" groupRelation="and">
             <RegistryEvent onmatch="include">
-                <Rule name="technique_id=T1546.012" groupRelation="and">
+                <Rule  groupRelation="and">
                     <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options</TargetObject>
                     <TargetObject condition="contains">Debugger</TargetObject>
                 </Rule>
             </RegistryEvent>
-            <RegistryEvent onmatch="exclude">
-                <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\sethc.exe\Debugger</TargetObject>
-                <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\utilman.exe\Debugger</TargetObject>
-                <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\osk.exe\Debugger</TargetObject>
-                <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\Magnify.exe\Debugger</TargetObject>
-                <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\Narrator.exe\Debugger</TargetObject>
-                <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\DisplaySwitch.exe\Debugger</TargetObject>
-                <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\AtBroker.exe\Debugger</TargetObject>
+            <RegistryEvent onmatch="exclude" >
+                <Rule groupRelation="or">
+                    <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\sethc.exe\Debugger</TargetObject>
+                    <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\utilman.exe\Debugger</TargetObject>
+                    <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\osk.exe\Debugger</TargetObject>
+                    <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\Magnify.exe\Debugger</TargetObject>
+                    <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\Narrator.exe\Debugger</TargetObject>
+                    <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\DisplaySwitch.exe\Debugger</TargetObject>
+                    <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\AtBroker.exe\Debugger</TargetObject>
+                </Rule>
             </RegistryEvent>
         </RuleGroup>
         <RuleGroup groupRelation="or">
@@ -42,5 +44,4 @@
     </EventFiltering>
             
             
-            
-</Sysmon>
+    12/</Sysmon>
