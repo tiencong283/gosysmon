@@ -14,11 +14,11 @@
         <RuleGroup groupRelation="or">
             <RegistryEvent onmatch="include">
                 <Rule name="technique_id=T1546.012" groupRelation="and">
-                    <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options</TargetObject>
+                    <TargetObject condition="begin with">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options</TargetObject>
                     <TargetObject condition="contains">Debugger</TargetObject>
                 </Rule>
                 <Rule name="technique_id=T1546.012" groupRelation="and">
-                    <TargetObject condition="is">HKLM\SOFTWARE\Wow6432Node\Microsoft\Windows NT\CurrentVersion\Image File Execution Options</TargetObject>
+                    <TargetObject condition="begin with">HKLM\SOFTWARE\Wow6432Node\Microsoft\Windows NT\CurrentVersion\Image File Execution Options</TargetObject>
                     <TargetObject condition="contains">Debugger</TargetObject>
                 </Rule>
                 <Rule name="technique_id=T1546.012" groupRelation="or">
@@ -27,6 +27,4 @@
             </RegistryEvent>
         </RuleGroup>
     </EventFiltering>
-            
-            
-    12/</Sysmon>
+</Sysmon>
