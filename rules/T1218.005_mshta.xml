@@ -1,0 +1,30 @@
+<Sysmon schemaversion="4.30">
+  <EventFiltering>
+	<RuleGroup name="technique_id=T1218.005" groupRelation="and">
+		<ProcessCreate onmatch="include">
+			<Image condition="is">C:\Windows\System32\mshta.exe</Image>	
+			<Rule name="" groupRelation="or">
+				<CommandLine condition="contains">vbscript</CommandLine>		
+				<CommandLine condition="contains">javascript</CommandLine>	
+			</Rule>							
+		</ProcessCreate>
+	</RuleGroup>
+    <RuleGroup name="" groupRelation="or">
+		<ProcessCreate onmatch="include">
+				
+			<Rule name="T1218.005" groupRelation="and">
+				<Image condition="is">C:\Windows\System32\mshta.exe</Image>
+				<CommandLine condition="contains">.hta</CommandLine>		
+			</Rule>							
+		</ProcessCreate>
+		<!-- Event ID 7 == Image Loaded. -->
+		<ImageLoad onmatch="include">
+			<Rule name="technique_id=T1218.005" groupRelation="or">
+				<ImageLoaded condition="is">C:\Windows\System32\jscript9.dll</ImageLoaded>
+				<ImageLoaded condition="is">C:\Windows\System32\jscript.dll</ImageLoaded>
+				<ImageLoaded condition="is">C:\Windows\System32\vbscript.dll</ImageLoaded>
+			</Rule>
+		</ImageLoad>
+    </RuleGroup>
+  </EventFiltering>
+</Sysmon>
