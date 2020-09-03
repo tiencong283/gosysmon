@@ -15,7 +15,7 @@ postgresql:
   host: localhost
   port: 5432
   database: gosysmon
-  user: gosysmon
+  user: tiencong283
   password: gosysmon
 # redis used as a cached for IOC checking
 redis:

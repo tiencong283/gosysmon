@@ -3,6 +3,9 @@ import {Link} from "react-router-dom"
 import $ from "jquery"
 import AlertContextModel from "../AlertContextModel/AlertContextModel"
 import PaginationNav from "../PaginationNav/PaginationNav"
+import Header from '../Header/Header'
+import * as AuthService from "../Auth/AuthService";
+import { Redirect } from "react-router-dom";
 
 const title = "Alert List - GoSysmon"
 const endpoint = "/api/alert"
@@ -117,29 +120,42 @@ class AlertList extends React.Component {
             )
         })
     }
-
+    state = { redirectToReferrer: false };
+    logoutHandler = () => {
+        AuthService.logout();
+        this.setState({ redirectToReferrer: true });
+    };
     render() {
+        let { redirectToReferrer } = this.state;
+        if (redirectToReferrer) return <Redirect to="/" />;
         return (
-            <div className="inner-content-wrapper">
-                <PaginationNav paging={this.state.paging} handlePrevious={this.handlePrevious}
-                               handleNext={this.handleNext}/>
-                <AlertContextModel alert={this.state.alert}/>
-                <table className="common-table">
-                    <thead>
-                    <tr>
-                        <th>Timestamp</th>
-                        <th>Hostname</th>
-                        <th>Process</th>
-                        <th>Technique</th>
-                        <th>Notes</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {
-                        this.renderAlerts()
-                    }
-                    </tbody>
-                </table>
+            <div className="grid-container full">
+                <div className="grid-x grid-margin-x main-container">
+                    <Header />
+                    <div className="cell auto content-wrapper">
+                        <div className="inner-content-wrapper">
+                            <PaginationNav paging={this.state.paging} handlePrevious={this.handlePrevious}
+                                handleNext={this.handleNext} />
+                            <AlertContextModel alert={this.state.alert} />
+                            <table className="common-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Hostname</th>
+                                        <th>Process</th>
+                                        <th>Technique</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {
+                                        this.renderAlerts()
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         )
     }

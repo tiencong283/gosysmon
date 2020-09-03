@@ -2,9 +2,13 @@ import React from "react"
 import $ from "jquery"
 import {Link} from "react-router-dom";
 import PaginationNav from "../PaginationNav/PaginationNav";
+import Header from '../Header/Header'
+import * as AuthService from "../Auth/AuthService";
+import { Redirect } from "react-router-dom";
 
 const title = "IOC List - GoSysmon"
 const endpoint = "/api/ioc"
+
 
 class IOCList extends React.Component {
     constructor(props) {
@@ -84,34 +88,41 @@ class IOCList extends React.Component {
 
     render() {
         return (
-            <div className="inner-content-wrapper">
-                <PaginationNav paging={this.state.paging} handlePrevious={this.handlePrevious}
-                               handleNext={this.handleNext}/>
+            <div className="grid-container full">
+                <div className="grid-x grid-margin-x main-container">
+                    <Header />
+                    <div className="cell auto content-wrapper">
+                        <div className="inner-content-wrapper">
+                            <PaginationNav paging={this.state.paging} handlePrevious={this.handlePrevious}
+                                handleNext={this.handleNext} />
 
-                <table className="common-table">
-                    <thead>
-                    <tr>
-                        <th>Timestamp</th>
-                        <th>Type</th>
-                        <th>Indicator</th>
-                        <th>Notes</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {
-                        this.state.viewIOCs.map(function (ioc, idx) {
-                            return (
-                                <tr key={idx}>
-                                    <td className="col-timestamp">{ioc.Timestamp}</td>
-                                    <td>{ioc.IOCType}</td>
-                                    <td><a href={ioc.ExternalUrl}>{ioc.Indicator}</a></td>
-                                    <td className="col-notes"><Link to={ioc.ProcRefUrl}>{ioc.Message}</Link></td>
-                                </tr>
-                            )
-                        })
-                    }
-                    </tbody>
-                </table>
+                            <table className="common-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Type</th>
+                                        <th>Indicator</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {
+                                        this.state.viewIOCs.map(function (ioc, idx) {
+                                            return (
+                                                <tr key={idx}>
+                                                    <td className="col-timestamp">{ioc.Timestamp}</td>
+                                                    <td>{ioc.IOCType}</td>
+                                                    <td><a href={ioc.ExternalUrl}>{ioc.Indicator}</a></td>
+                                                    <td className="col-notes"><Link to={ioc.ProcRefUrl}>{ioc.Message}</Link></td>
+                                                </tr>
+                                            )
+                                        })
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         )
     }
