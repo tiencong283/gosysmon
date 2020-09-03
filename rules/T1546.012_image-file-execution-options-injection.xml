@@ -2,6 +2,7 @@
     <!--
         References:
             https://attack.mitre.org/techniques/T1546/012/
+            https://docs.microsoft.com/en-us/windows/win32/sysinfo/32-bit-and-64-bit-application-data-in-the-registry
         List:
         Todo:
             Adversaries may establish persistence and/or elevate privileges by executing malicious content triggered by Image File Execution Options (IEFO) debuggers.
@@ -12,8 +13,15 @@
     <EventFiltering>
         <RuleGroup groupRelation="or">
             <RegistryEvent onmatch="include">
+                <Rule name="technique_id=T1546.012" groupRelation="and">
+                    <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options</TargetObject>
+                    <TargetObject condition="contains">Debugger</TargetObject>
+                </Rule>
+                <Rule name="technique_id=T1546.012" groupRelation="and">
+                    <TargetObject condition="is">HKLM\SOFTWARE\Wow6432Node\Microsoft\Windows NT\CurrentVersion\Image File Execution Options</TargetObject>
+                    <TargetObject condition="contains">Debugger</TargetObject>
+                </Rule>
                 <Rule name="technique_id=T1546.012" groupRelation="or">
-                    <TargetObject condition="is">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\Debugger</TargetObject>
                     <TargetObject condition="begin with">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SilentProcessExit</TargetObject>
                 </Rule>
             </RegistryEvent>
