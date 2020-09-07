@@ -3,8 +3,8 @@ import * as AuthService from "./AuthService";
 import { Redirect } from "react-router-dom";
 import "./main.css";
 
-const validUser = "admin"
-const validPass = "123456"
+const validUser = "gosysmon"
+const validPass = "gosysmon"
 
 class NotifyLoginComponent extends Component {
 	
