@@ -48,27 +48,30 @@ const navItems = [
     },
 ]
 
+function active() {
+    for (let i = 1; i < navItems.length; i++)
+        if (window.location.href.includes(navItems[i].path) && navItems[i].path != "/")
+	{
+            return navItems[i].name
+	}
+    return "Home"
+}
+
 
 class Header extends React.Component {
 
     constructor(props) {
         super(props)
         this.state = {
-            activeIdx: 0
+            tab: active(),
         }
-    }
-
-    handleChangeNavItem(idx) {
-        this.setState({
-            activeIdx: idx
-        })
     }
 
     renderNavItems() {
         return navItems.map((navItem, idx) => {
-            let active = this.state.activeIdx === idx ? "underline" : ""
+            let active = this.state.tab === navItem.name ? "underline" : ""
             return (
-                <li key={idx} className={active} onClick={this.handleChangeNavItem.bind(this, idx)}>
+                <li key={idx} className={active}>
                     <Link to={navItem.path}><span><i
                         className={`${navItem.icon} main-sidebar-icon`}/>{navItem.name}</span></Link>
                 </li>

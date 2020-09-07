@@ -11,6 +11,7 @@ import FileTabLogo from "./file-earmark-binary.svg"
 import ActTabLogo from "./camera-reels.svg"
 import RelationshipTabLogo from "./diagram-3.svg"
 import UserTabLogo from "./user.svg"
+import Header from '../Header/Header'
 
 require('highcharts/modules/networkgraph')(Highcharts)
 
@@ -406,13 +407,20 @@ class ProcessRel extends React.Component {
             }
         }
         return (
-            <div className="processtree-content">
-                <div className="node-note">
-                    {
-                        this.renderNodeNotes()
-                    }
+	    <div className="grid-container full">
+                <div className="grid-x grid-margin-x main-container">
+                    <Header />
+                    <div className="cell auto content-wrapper">
+                        <div className="processtree-content">
+			    <div className="node-note">
+			        {
+			            this.renderNodeNotes()
+			        }
+			    </div>
+			    <HighchartsReact highcharts={Highcharts} options={networkGraphOptions}/>
+		        </div>
+                    </div>
                 </div>
-                <HighchartsReact highcharts={Highcharts} options={networkGraphOptions}/>
             </div>
         )
     }
