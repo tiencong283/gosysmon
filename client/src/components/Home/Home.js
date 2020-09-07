@@ -4,6 +4,10 @@ import HighchartsReact from "highcharts-react-official"
 import Moment from "moment"
 import MomentTimezone from "moment-timezone"
 import $ from "jquery"
+import Header from '../Header/Header'
+import Navbar from '../Navbar/Navbar'
+import * as AuthService from "../Auth/AuthService";
+import { Redirect } from "react-router-dom";
 
 require('highcharts/modules/accessibility')(Highcharts)
 
@@ -199,27 +203,35 @@ class Home extends React.Component {
 
     render() {
         return (
-            <div className="inner-content-wrapper grid-x">
-                <div className="event-rate cell medium-6">
-                    <button id="event-rate-button" className="hollow button small"
-                            onClick={this.handleEventRateSwitch}>Stop
-                    </button>
-                    <div>
-                        <HighchartsReact
-                            highcharts={Highcharts}
-                            options={this.state.eventRateChartOptions}
-                            callback={this.afterChartCreated}
-                        />
-                    </div>
-                </div>
-                <div className="technique-stats cell medium-6">
-                    <button id="technique-stats-button" className="hollow button small"
-                            onClick={this.handleResetTechniqueStats}>Refresh
-                    </button>
-                    <div>
-                        <HighchartsReact
-                            highcharts={Highcharts}
-                            options={this.state.techStatsChartOptions}/>
+            <div className="grid-container full">
+                <Navbar />
+                <div className="grid-x grid-margin-x main-container">
+                    <Header />
+                    <div className="cell auto content-wrapper">
+                        <div className="inner-content-wrapper grid-x">
+                            <div className="event-rate cell medium-6">
+                                <button id="event-rate-button" className="hollow button small"
+                                    onClick={this.handleEventRateSwitch}>Stop
+                                </button>
+                                <div>
+                                    <HighchartsReact
+                                        highcharts={Highcharts}
+                                        options={this.state.eventRateChartOptions}
+                                        callback={this.afterChartCreated}
+                                    />
+                                </div>
+                            </div>
+                            <div className="technique-stats cell medium-6">
+                                <button id="technique-stats-button" className="hollow button small"
+                                    onClick={this.handleResetTechniqueStats}>Refresh
+                                </button>
+                                <div>
+                                    <HighchartsReact
+                                        highcharts={Highcharts}
+                                        options={this.state.techStatsChartOptions} />
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
