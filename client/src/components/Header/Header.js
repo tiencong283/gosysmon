@@ -54,6 +54,8 @@ function active() {
 	{
             return navItems[i].name
 	}
+    if (window.location.href.includes("/process"))
+	return "Alerts"
     return "Home"
 }
 

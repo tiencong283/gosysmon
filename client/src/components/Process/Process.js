@@ -144,24 +144,31 @@ class Process extends React.Component {
 
     render() {
         return (
-            <div className="process-wrapper">
-                <header className="process-header">
-                    <ul>
-                        {
-                            this.renderProcNavItems()
-                        }
-                    </ul>
-                </header>
-                <div className="process-content">
-                    {this.state.tabSegment === "#execution-details" && <ProcessExecution proc={this.state.proc}/>}
-                    {this.state.tabSegment === "#file-defails" && <ProcessImageFile proc={this.state.proc}/>}
-                    {this.state.tabSegment === "#activity" &&
-                    <ProcessActivities procActivities={this.state.procActivities}/>}
-                    {this.state.tabSegment === "#relationship" &&
-                    <ProcessRel proc={this.state.proc} procRel={this.state.procRel}/>}
-                    {this.state.tabSegment === "#session" && <ProcessSession proc={this.state.proc}/>}
-                </div>
-            </div>
+		<div className="grid-container full">
+			<div className="grid-x grid-margin-x main-container">
+				<Header />
+				<div className="cell auto content-wrapper">
+					<div className="process-wrapper">
+						<header className="process-header">
+							<ul>
+								{
+									this.renderProcNavItems()
+								}
+							</ul>
+						</header>
+						<div className="process-content">
+							{this.state.tabSegment === "#execution-details" && <ProcessExecution proc={this.state.proc}/>}
+							{this.state.tabSegment === "#file-defails" && <ProcessImageFile proc={this.state.proc}/>}
+							{this.state.tabSegment === "#activity" &&
+							<ProcessActivities procActivities={this.state.procActivities}/>}
+							{this.state.tabSegment === "#relationship" &&
+							<ProcessRel proc={this.state.proc} procRel={this.state.procRel}/>}
+							{this.state.tabSegment === "#session" && <ProcessSession proc={this.state.proc}/>}
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
         )
     }
 }
@@ -407,21 +414,14 @@ class ProcessRel extends React.Component {
             }
         }
         return (
-	    <div className="grid-container full">
-                <div className="grid-x grid-margin-x main-container">
-                    <Header />
-                    <div className="cell auto content-wrapper">
-                        <div className="processtree-content">
-			    <div className="node-note">
-			        {
-			            this.renderNodeNotes()
-			        }
-			    </div>
-			    <HighchartsReact highcharts={Highcharts} options={networkGraphOptions}/>
-		        </div>
-                    </div>
-                </div>
-            </div>
+		<div className="processtree-content">
+			<div className="node-note">
+				{
+					this.renderNodeNotes()
+				}
+			</div>
+			<HighchartsReact highcharts={Highcharts} options={networkGraphOptions}/>
+		</div>
         )
     }
 }
