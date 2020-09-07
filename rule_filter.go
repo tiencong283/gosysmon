@@ -17,13 +17,18 @@ const (
 	RuleDirPath       = "rules"
 	SchemaDefFilePath = "sensor/sysmon_config_schema_definition.xml"
 	// supported match operations (case insensitive by default)
-	OIs        = "is"
-	OIsNot     = "is not"
-	OContains  = "contains"
-	OBeginWith = "begin with"
-	OEndWith   = "end with"
-	OImage     = "image"     // "Match an image path (full path or only image name). For example: lsass.exe will match c:\windows\system32\lsass.exe"
-	ODir       = "directory" // use the all but last element of path, e.g the path's directory
+	OIs          = "is"
+	OIsNot       = "is not"
+	OContains    = "contains"
+	OContainsAny = "contains any"
+	OContainsAll = "contains all"
+	OExcludes    = "excludes"
+	OExcludesAny = "excludes any"
+	OExcludesAll = "excludes all"
+	OBeginWith   = "begin with"
+	OEndWith     = "end with"
+	OImage       = "image"     // "Match an image path (full path or only image name). For example: lsass.exe will match c:\windows\system32\lsass.exe"
+	ODir         = "directory" // use the all but last element of path, e.g the path's directory
 )
 
 type SchemaDef struct {
@@ -224,6 +229,44 @@ func (rule *Rule) isMatched(event *SysmonEvent) bool {
 		return propValue != rule.Value
 	case OContains:
 		return strings.Contains(propValue, rule.Value)
+	case OContainsAny:
+		tokens := strings.Split(rule.Value, ";")
+		for _, token := range tokens {
+			token = strings.TrimSpace(token)
+			if strings.Contains(propValue, token) {
+				return true
+			}
+		}
+		return false
+	case OContainsAll:
+		tokens := strings.Split(rule.Value, ";")
+		for _, token := range tokens {
+			token = strings.TrimSpace(token)
+			if !strings.Contains(propValue, token) {
+				return false
+			}
+		}
+		return true
+	case OExcludes:
+		return !strings.Contains(propValue, rule.Value)
+	case OExcludesAny:
+		tokens := strings.Split(rule.Value, ";")
+		for _, token := range tokens {
+			token = strings.TrimSpace(token)
+			if !strings.Contains(propValue, token) {
+				return true
+			}
+		}
+		return false
+	case OExcludesAll:
+		tokens := strings.Split(rule.Value, ";")
+		for _, token := range tokens {
+			token = strings.TrimSpace(token)
+			if strings.Contains(propValue, token) {
+				return false
+			}
+		}
+		return true
 	case OBeginWith:
 		return strings.HasPrefix(propValue, rule.Value)
 	case OEndWith:
