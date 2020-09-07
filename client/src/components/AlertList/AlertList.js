@@ -3,6 +3,7 @@ import {Link} from "react-router-dom"
 import $ from "jquery"
 import AlertContextModel from "../AlertContextModel/AlertContextModel"
 import PaginationNav from "../PaginationNav/PaginationNav"
+import Header from '../Header/Header'
 
 const title = "Alert List - GoSysmon"
 const endpoint = "/api/alert"
@@ -219,38 +220,50 @@ class AlertList extends React.Component {
         })
     }
 
+    state = {redirectToReferrer: false};
+    logoutHandler = () => {
+        AuthService.logout()
+        this.setState({redirectToReferrer: true})
+    }
+
     render() {
         return (
-            <div className="inner-content-wrapper">
-                <div className="search-bar">
-                    <input type="text" onInput={this.handleUserInput}/>
+            <div className="grid-container full">
+                <div className="grid-x grid-margin-x main-container">
+                    <Header/>
+                    <div className="cell auto content-wrapper">
+                        <div className="inner-content-wrapper">
+                            <div className="search-bar">
+                                <input type="text" onInput={this.handleUserInput}/>
+                            </div>
+                            <PaginationNav paging={this.state.paging} handlePrevious={this.handlePrevious}
+                                           handleNext={this.handleNext}/>
+                            <AlertContextModel alert={this.state.alert}/>
+                            <table className="common-table">
+                                <thead>
+                                <tr>
+                                    <TableHeaderItem sortInfo={this.state.sortInfo}
+                                                     onClick={this.handleSortClick}>Timestamp</TableHeaderItem>
+                                    <TableHeaderItem sortInfo={this.state.sortInfo}
+                                                     onClick={this.handleSortClick}>Hostname</TableHeaderItem>
+                                    <TableHeaderItem sortInfo={this.state.sortInfo}
+                                                     onClick={this.handleSortClick}>Process</TableHeaderItem>
+                                    <TableHeaderItem sortInfo={this.state.sortInfo}
+                                                     onClick={this.handleSortClick}>Technique</TableHeaderItem>
+                                    <TableHeaderItem sortInfo={this.state.sortInfo}
+                                                     onClick={this.handleSortClick}>Notes</TableHeaderItem>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {
+                                    this.renderAlerts()
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
-                <PaginationNav paging={this.state.paging} handlePrevious={this.handlePrevious}
-                               handleNext={this.handleNext}/>
-                <AlertContextModel alert={this.state.alert}/>
-                <table className="common-table">
-                    <thead>
-                    <tr>
-                        <TableHeaderItem sortInfo={this.state.sortInfo}
-                                         onClick={this.handleSortClick}>Timestamp</TableHeaderItem>
-                        <TableHeaderItem sortInfo={this.state.sortInfo}
-                                         onClick={this.handleSortClick}>Hostname</TableHeaderItem>
-                        <TableHeaderItem sortInfo={this.state.sortInfo}
-                                         onClick={this.handleSortClick}>Process</TableHeaderItem>
-                        <TableHeaderItem sortInfo={this.state.sortInfo}
-                                         onClick={this.handleSortClick}>Technique</TableHeaderItem>
-                        <TableHeaderItem sortInfo={this.state.sortInfo}
-                                         onClick={this.handleSortClick}>Notes</TableHeaderItem>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {
-                        this.renderAlerts()
-                    }
-                    </tbody>
-                </table>
-            </div>
-        )
+            </div>)
     }
 }
 
