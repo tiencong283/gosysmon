@@ -5,7 +5,7 @@ import AlertContextModel from "../AlertContextModel/AlertContextModel"
 import PaginationNav from "../PaginationNav/PaginationNav"
 
 const title = "Alert List - GoSysmon"
-const endpoint = "http://localhost:9090/api/alert"
+const endpoint = "/api/alert"
 
 $(document).click(function (event) {
     let $target = $(event.target)
