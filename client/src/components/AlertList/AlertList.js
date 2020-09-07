@@ -4,6 +4,8 @@ import $ from "jquery"
 import AlertContextModel from "../AlertContextModel/AlertContextModel"
 import PaginationNav from "../PaginationNav/PaginationNav"
 import Header from '../Header/Header'
+import * as AuthService from "../Auth/AuthService"
+import { Redirect } from "react-router-dom"
 
 const title = "Alert List - GoSysmon"
 const endpoint = "/api/alert"
@@ -227,6 +229,9 @@ class AlertList extends React.Component {
     }
 
     render() {
+        let { redirectToReferrer } = this.state
+        if (redirectToReferrer) return <Redirect to="/" />
+        
         return (
             <div className="grid-container full">
                 <div className="grid-x grid-margin-x main-container">
